@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Quiz{% endblock %}
+{% block page_title %}📝 AI Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="module-layout">
+    <!-- Settings Panel -->
+    <div class="panel card">
+        <h3 class="card-title">Quiz Settings</h3>
+        <div class="form-group">
+            <label class="form-label">Skill / Subject</label>
+            <input type="text" id="qzSkill" class="form-input" value="{{ current_user.skill or 'Python' }}"
+                placeholder="e.g. Python, SQL…" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Level</label>
+            <select id="qzLevel" class="form-input">
+                <option {% if current_user.level=='Beginner' %}selected{% endif %}>Beginner</option>
+                <option {% if current_user.level=='Intermediate' %}selected{% endif %}>Intermediate</option>
+                <option {% if current_user.level=='Advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Topic (optional)</label>
+            <input type="text" id="qzTopic" class="form-input" placeholder="e.g. Functions, OOP…" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Number of Questions</label>
+            <select id="qzCount" class="form-input">
+                <option value="5">5 Questions</option>
+                <option value="10" selected>10 Questions</option>
+                <option value="15">15 Questions</option>
+                <option value="20">20 Questions</option>
+            </select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="startQuiz()">🚀 Start Quiz</button>
+
+        <!-- Quiz History -->
+        {% if quiz_history %}
+        <div class="saved-section">
+            <h4 class="saved-title">Recent Quizzes</h4>
+            {% for q in quiz_history %}
+            <div class="saved-item no-hover">
+                <span class="saved-icon">📝</span>
+                <div>
+                    <div class="saved-name">{{ q.skill }} – {{ q.level }}</div>
+                    <div class="saved-meta">{{ q.created_at.strftime('%b %d') }}</div>
+                </div>
+                {% if q.score is not none %}
+                <span
+                    class="badge badge-{{ 'success' if q.score/q.total >= 0.7 else 'warning' if q.score/q.total >= 0.5 else 'error' }}">
+                    {{ q.score }}/{{ q.total }}
+                </span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quiz Content -->
+    <div class="content-panel">
+        <div id="qzEmpty" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3>Ready to test your knowledge?</h3>
+            <p>Configure your quiz settings and click "Start Quiz" to begin!</p>
+        </div>
+        <div id="qzLoading" class="loader-container hidden">
+            <div class="loader"></div>
+            <p>Generating your quiz…</p>
+        </div>
+
+        <!-- Quiz in progress -->
+        <div id="qzGame" class="hidden">
+            <div class="quiz-progress-bar">
+                <div class="quiz-progress-info">
+                    <span>Question <span id="qCurrent">1</span> of <span id="qTotal">10</span></span>
+                    <span id="qTimer" class="quiz-timer">⏱ 0:00</span>
+                </div>
+                <div class="progress-track">
+                    <div id="qProgressBar" class="progress-fill"></div>
+                </div>
+            </div>
+            <div id="questionCard" class="question-card card">
+                <p class="q-number">Q<span id="qNum">1</span></p>
+                <h3 id="qText" class="q-text"></h3>
+                <div id="qOptions" class="q-options"></div>
+                <button id="qNextBtn" class="btn btn-primary hidden" onclick="nextQuestion()">Next →</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="qzResults" class="hidden">
+            <div class="results-header card">
+                <div class="result-score-circle" id="resultCircle">
+                    <div id="resultPct" class="result-pct">0%</div>
+                    <div class="result-label">Score</div>
+                </div>
+                <div class="result-info">
+                    <h2 id="resultMsg"></h2>
+                    <p id="resultDetail"></p>
+                    <div class="result-actions">
+                        <button class="btn btn-primary" onclick="startQuiz()">🔄 Retake</button>
+                        <button class="btn btn-outline" onclick="showAnswers()">📖 Review Answers</button>
+                    </div>
+                </div>
+            </div>
+            <div id="answersReview" class="hidden"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let questions = [], currentQ = 0, answers = {}, quizId = null, timerInterval, seconds = 0;
+
+    async function startQuiz() {
+        const skill = document.getElementById('qzSkill').value;
+        const level = document.getElementById('qzLevel').value;
+        const topic = document.getElementById('qzTopic').value;
+        const count = document.getElementById('qzCount').value;
+        document.getElementById('qzEmpty').classList.add('hidden');
+        document.getElementById('qzResults').classList.add('hidden');
+        document.getElementById('qzLoading').classList.remove('hidden');
+        document.getElementById('qzGame').classList.add('hidden');
+
+        try {
+            const res = await fetch('/api/quiz/generate', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skill, level, topic, count: parseInt(count) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                questions = data.questions;
+                quizId = data.quiz_id;
+                answers = {};
+                currentQ = 0;
+                seconds = 0;
+                startTimer();
+                document.getElementById('qTotal').textContent = questions.length;
+                document.getElementById('qzLoading').classList.add('hidden');
+                document.getElementById('qzGame').classList.remove('hidden');
+                renderQuestion();
+            } else showToast(data.error || 'Failed', 'error');
+        } catch (e) { showToast('Network error', 'error'); }
+        document.getElementById('qzLoading').classList.add('hidden');
+    }
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            seconds++;
+            const m = Math.floor(seconds / 60), s = seconds % 60;
+            document.getElementById('qTimer').textContent = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    function renderQuestion() {
+        const q = questions[currentQ];
+        document.getElementById('qNum').textContent = currentQ + 1;
+        document.getElementById('qCurrent').textContent = currentQ + 1;
+        document.getElementById('qText').textContent = q.question;
+        const pct = ((currentQ) / questions.length * 100);
+        document.getElementById('qProgressBar').style.width = pct + '%';
+        const opts = document.getElementById('qOptions');
+        opts.innerHTML = '';
+        (q.options || []).forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt;
+            btn.onclick = () => selectAnswer(opt.charAt(0), btn);
+            opts.appendChild(btn);
+        });
+        document.getElementById('qNextBtn').classList.add('hidden');
+    }
+
+    function selectAnswer(letter, btn) {
+        if (answers[questions[currentQ].id]) return;
+        answers[questions[currentQ].id] = letter;
+        document.querySelectorAll('.option-btn').forEach(b => b.classList.add('disabled'));
+        btn.classList.add('selected');
+        document.getElementById('qNextBtn').classList.remove('hidden');
+    }
+
+    function nextQuestion() {
+        if (!answers[questions[currentQ].id]) { showToast('Please select an answer!', 'error'); return; }
+        currentQ++;
+        if (currentQ < questions.length) {
+            renderQuestion();
+        } else {
+            clearInterval(timerInterval);
+            submitQuiz();
+        }
+    }
+
+    async function submitQuiz() {
+        document.getElementById('qzGame').classList.add('hidden');
+        try {
+            const res = await fetch('/api/quiz/submit', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quiz_id: quizId, answers })
+            });
+            const data = await res.json();
+            if (data.success) renderResults(data);
+            else showToast(data.error || 'Submit failed', 'error');
+        } catch (e) { showToast('Network error', 'error'); }
+    }
+
+    function renderResults(data) {
+        const pct = data.percentage;
+        document.getElementById('resultPct').textContent = pct + '%';
+        const circle = document.getElementById('resultCircle');
+        circle.style.borderColor = pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+        document.getElementById('resultMsg').textContent = pct >= 80 ? 'Excellent! 🎉' : pct >= 60 ? 'Good job! 👍' : 'Keep practicing! 💪';
+        document.getElementById('resultDetail').textContent = `${data.score} out of ${data.total} correct`;
+        document.getElementById('qzResults').classList.remove('hidden');
+
+        // Store results for review
+        document.getElementById('answersReview').dataset.results = JSON.stringify(data.results);
+    }
+
+    function showAnswers() {
+        const r = JSON.parse(document.getElementById('answersReview').dataset.results || '[]');
+        const el = document.getElementById('answersReview');
+        el.classList.remove('hidden');
+        el.innerHTML = '<h3 style="margin-bottom:1rem">📖 Answer Review</h3>' + r.map(q => `
+    <div class="review-card card ${q.correct ? 'correct' : 'wrong'}">
+      <p class="review-q">${q.question}</p>
+      <div class="review-answers">
+        <span class="review-ans">Your answer: <strong>${q.user_answer || '–'}</strong></span>
+        <span class="review-ans">Correct: <strong>${q.correct_answer}</strong></span>
+      </div>
+      <p class="review-exp"><em>${q.explanation}</em></p>
+    </div>`).join('');
+    }
+</script>
+{% endblock %}

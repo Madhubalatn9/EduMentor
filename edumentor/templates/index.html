@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block public_content %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>EduMentor – AI-Powered Learning</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+</head>
+
+<body class="landing-body">
+
+    <div class="landing-bg">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+        <div class="orb orb3"></div>
+    </div>
+
+    <div class="landing-wrapper">
+        <!-- Hero -->
+        <div class="hero-section">
+            <div class="hero-badge">✨ AI-Powered Learning Platform</div>
+            <h1 class="hero-title">Learn Smarter with <span class="gradient-text">EduMentor</span></h1>
+            <p class="hero-sub">Generate personalized roadmaps, practice coding, ace quizzes & crush interviews — all
+                powered by AI.</p>
+            <div class="hero-chips">
+                <span class="chip">🗺️ Course Roadmaps</span>
+                <span class="chip">💻 Coding IDE</span>
+                <span class="chip">📝 AI Quizzes</span>
+                <span class="chip">🎯 Interview Prep</span>
+            </div>
+        </div>
+
+        <!-- Auth Card -->
+        <div class="auth-card" id="authCard">
+            <div class="auth-tabs">
+                <button class="auth-tab {% if form_type=='login' or not form_type %}active{% endif %}" id="loginTab"
+                    onclick="switchTab('login')">Sign In</button>
+                <button class="auth-tab {% if form_type=='register' %}active{% endif %}" id="registerTab"
+                    onclick="switchTab('register')">Sign Up</button>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div style="margin-bottom:1rem;">
+                {% for cat, msg in messages %}
+                <div class="flash flash-{{ cat }}">{{ msg }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form {% if form_type=='register' %}hidden{% endif %}" method="POST"
+                action="{{ url_for('auth.login') }}">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" id="loginUsername" class="form-input"
+                        placeholder="Enter your username" required autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" id="loginPassword" class="form-input"
+                        placeholder="Enter your password" required autocomplete="current-password" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="loginBtn">Sign In →</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form {% if form_type!='register' %}hidden{% endif %}" method="POST"
+                action="{{ url_for('auth.register') }}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" id="regUsername" class="form-input"
+                            placeholder="Choose username" required autocomplete="username" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" id="regEmail" class="form-input" placeholder="your@email.com"
+                            required autocomplete="email" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" id="regPassword" class="form-input"
+                        placeholder="Create a password" required autocomplete="new-password" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Primary Skill</label>
+                        <select name="skill" id="regSkill" class="form-input">
+                            <option>Python</option>
+                            <option>JavaScript</option>
+                            <option>Java</option>
+                            <option>C++</option>
+                            <option>Data Science</option>
+                            <option>Machine Learning</option>
+                            <option>Web Development</option>
+                            <option>DevOps</option>
+                            <option>React</option>
+                            <option>SQL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Level</label>
+                        <select name="level" id="regLevel" class="form-input">
+                            <option>Beginner</option>
+                            <option>Intermediate</option>
+                            <option>Advanced</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="registerBtn">Create Account →</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+            document.getElementById('loginTab').classList.toggle('active', tab === 'login');
+            document.getElementById('registerTab').classList.toggle('active', tab === 'register');
+        }
+    </script>
+</body>
+
+</html>
+{% endblock %}

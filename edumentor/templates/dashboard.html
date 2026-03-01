@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-welcome">
+    <div>
+        <h2 class="welcome-text">Welcome back, <span class="gradient-text">{{ current_user.username }}</span> 👋</h2>
+        <p class="welcome-sub">{{ current_user.skill or 'Set your skill' }} · {{ current_user.level or 'Beginner' }}
+            Level · Keep learning!</p>
+    </div>
+    <div class="streak-badge">🔥 Keep your streak!</div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card card" style="--accent:#6366f1">
+        <div class="stat-icon">🗺️</div>
+        <div class="stat-value">{{ stats.roadmaps }}</div>
+        <div class="stat-label">Roadmaps Created</div>
+        <a href="{{ url_for('roadmap.roadmap') }}" class="stat-link">Generate New →</a>
+    </div>
+    <div class="stat-card card" style="--accent:#8b5cf6">
+        <div class="stat-icon">💻</div>
+        <div class="stat-value">{{ stats.coding }}</div>
+        <div class="stat-label">Coding Sessions</div>
+        <a href="{{ url_for('ide.ide') }}" class="stat-link">Practice Now →</a>
+    </div>
+    <div class="stat-card card" style="--accent:#0ea5e9">
+        <div class="stat-icon">📝</div>
+        <div class="stat-value">{{ stats.quizzes }}</div>
+        <div class="stat-label">Quizzes Taken</div>
+        <a href="{{ url_for('quiz.quiz') }}" class="stat-link">Take Quiz →</a>
+    </div>
+    <div class="stat-card card" style="--accent:#10b981">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value">{{ stats.interviews }}</div>
+        <div class="stat-label">Interview Sessions</div>
+        <a href="{{ url_for('interview.interview') }}" class="stat-link">Prepare →</a>
+    </div>
+    <div class="stat-card card" style="--accent:#f59e0b">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-value">{{ stats.avg_score }}%</div>
+        <div class="stat-label">Avg Quiz Score</div>
+        <a href="{{ url_for('progress.progress') }}" class="stat-link">View Progress →</a>
+    </div>
+    <div class="stat-card card" style="--accent:#ec4899">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value">{{ stats.passed }}</div>
+        <div class="stat-label">Problems Solved</div>
+        <a href="{{ url_for('ide.ide') }}" class="stat-link">Solve More →</a>
+    </div>
+</div>
+
+<!-- Bottom Row -->
+<div class="dash-bottom">
+    <!-- Quick Actions -->
+    <div class="card quick-actions">
+        <h3 class="card-title">⚡ Quick Actions</h3>
+        <div class="action-list">
+            <a href="{{ url_for('roadmap.roadmap') }}" class="action-item">
+                <span class="action-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">🗺️</span>
+                <div><strong>Generate Roadmap</strong><br /><small>Create a personalized learning path</small></div>
+            </a>
+            <a href="{{ url_for('ide.ide') }}" class="action-item">
+                <span class="action-icon" style="background:linear-gradient(135deg,#8b5cf6,#0ea5e9)">💻</span>
+                <div><strong>Solve a Problem</strong><br /><small>Practice coding with AI problems</small></div>
+            </a>
+            <a href="{{ url_for('quiz.quiz') }}" class="action-item">
+                <span class="action-icon" style="background:linear-gradient(135deg,#0ea5e9,#10b981)">📝</span>
+                <div><strong>Take a Quiz</strong><br /><small>Test your knowledge instantly</small></div>
+            </a>
+            <a href="{{ url_for('interview.interview') }}" class="action-item">
+                <span class="action-icon" style="background:linear-gradient(135deg,#10b981,#f59e0b)">🎯</span>
+                <div><strong>Interview Practice</strong><br /><small>Prepare for technical interviews</small></div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Quizzes -->
+    <div class="card recent-quizzes">
+        <h3 class="card-title">📊 Recent Quiz Results</h3>
+        {% if recent_quizzes %}
+        <div class="quiz-list">
+            {% for q in recent_quizzes %}
+            <div class="quiz-item">
+                <div class="quiz-info">
+                    <span class="quiz-skill">{{ q.skill }}</span>
+                    <span class="quiz-level badge">{{ q.level }}</span>
+                </div>
+                <div class="quiz-score">
+                    {% if q.score is not none %}
+                    <div class="score-bar">
+                        <div class="score-fill" style="width:{{ (q.score/q.total*100)|int }}%">&nbsp;</div>
+                    </div>
+                    <span class="score-text">{{ q.score }}/{{ q.total }}</span>
+                    {% else %}
+                    <span class="badge badge-warning">In Progress</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <p>No quizzes yet. <a href="{{ url_for('quiz.quiz') }}">Take your first quiz!</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

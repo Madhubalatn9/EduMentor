@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Interview Prep{% endblock %}
+{% block page_title %}🎯 Interview Prep{% endblock %}
+
+{% block content %}
+<div class="module-layout">
+    <!-- Settings Panel -->
+    <div class="panel card">
+        <h3 class="card-title">Session Settings</h3>
+        <div class="form-group">
+            <label class="form-label">Skill / Role</label>
+            <input type="text" id="ivSkill" class="form-input" value="{{ current_user.skill or 'Python' }}"
+                placeholder="e.g. Python, System Design…" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Level</label>
+            <select id="ivLevel" class="form-input">
+                <option {% if current_user.level=='Beginner' %}selected{% endif %}>Beginner</option>
+                <option {% if current_user.level=='Intermediate' %}selected{% endif %}>Intermediate</option>
+                <option {% if current_user.level=='Advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Interview Type</label>
+            <select id="ivType" class="form-input">
+                <option>Technical</option>
+                <option>Behavioral</option>
+                <option>System Design</option>
+                <option>Mixed</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Number of Questions</label>
+            <select id="ivCount" class="form-input">
+                <option value="5">5 Questions</option>
+                <option value="10" selected>10 Questions</option>
+                <option value="15">15 Questions</option>
+            </select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="generateInterview()">🤖 Generate Questions</button>
+
+        {% if sessions %}
+        <div class="saved-section">
+            <h4 class="saved-title">Past Sessions</h4>
+            {% for s in sessions %}
+            <div class="saved-item no-hover">
+                <span class="saved-icon">🎯</span>
+                <div>
+                    <div class="saved-name">{{ s.skill }}</div>
+                    <div class="saved-meta">{{ s.level }} · {{ s.created_at.strftime('%b %d') }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Interview Content -->
+    <div class="content-panel">
+        <div id="ivEmpty" class="empty-state">
+            <div class="empty-icon">🎯</div>
+            <h3>Ace Your Next Interview!</h3>
+            <p>Generate AI-powered interview questions with model answers and get instant feedback on your responses.
+            </p>
+        </div>
+        <div id="ivLoading" class="loader-container hidden">
+            <div class="loader"></div>
+            <p>Generating interview questions…</p>
+        </div>
+
+        <div id="ivSession" class="hidden">
+            <div class="iv-progress-bar">
+                <span id="ivProgress">Question 1 of 10</span>
+                <div class="iv-nav">
+                    <button class="btn btn-outline btn-sm" onclick="prevQuestion()">← Prev</button>
+                    <button class="btn btn-outline btn-sm" onclick="nextIvQuestion()">Next →</button>
+                </div>
+            </div>
+
+            <div id="ivCard" class="interview-card card">
+                <div class="iv-card-header">
+                    <span id="ivDiff" class="badge"></span>
+                    <span id="ivType2" class="badge badge-secondary"></span>
+                </div>
+                <h3 id="ivQuestion" class="iv-question"></h3>
+                <p id="ivFollowUp" class="iv-followup hidden"></p>
+
+                <div class="iv-answer-section">
+                    <label class="form-label">Your Answer</label>
+                    <textarea id="ivUserAnswer" class="form-input iv-textarea"
+                        placeholder="Type your answer here to get AI feedback…" rows="5"></textarea>
+                    <button class="btn btn-secondary" onclick="evaluateAnswer()">🤖 Evaluate My Answer</button>
+                </div>
+
+                <details class="model-answer-section">
+                    <summary>👁️ Show Model Answer</summary>
+                    <div class="model-answer-body">
+                        <p id="ivModelAnswer"></p>
+                        <div id="ivKeyPoints"></div>
+                    </div>
+                </details>
+
+                <div id="ivEvalResult" class="eval-result hidden">
+                    <div class="eval-header">
+                        <span class="eval-score-badge" id="ivEvalScore">–/10</span>
+                        <span id="ivEvalGrade" class="badge"></span>
+                    </div>
+                    <p id="ivEvalFeedback"></p>
+                    <div class="strengths-improvements">
+                        <div id="ivStrengths"></div>
+                        <div id="ivImprovements"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="iv-question-nav">
+                <div id="ivDots" class="q-dots"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let ivQuestions = [], ivCurrent = 0, ivSessionId = null;
+
+    async function generateInterview() {
+        const skill = document.getElementById('ivSkill').value;
+        const level = document.getElementById('ivLevel').value;
+        const type = document.getElementById('ivType').value;
+        const count = document.getElementById('ivCount').value;
+
+        document.getElementById('ivEmpty').classList.add('hidden');
+        document.getElementById('ivSession').classList.add('hidden');
+        document.getElementById('ivLoading').classList.remove('hidden');
+
+        try {
+            const res = await fetch('/api/interview/generate', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skill, level, type, count: parseInt(count) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                ivQuestions = data.questions;
+                ivSessionId = data.session_id;
+                ivCurrent = 0;
+                renderIvQuestion();
+                buildDots();
+                document.getElementById('ivSession').classList.remove('hidden');
+            } else showToast(data.error || 'Failed', 'error');
+        } catch (e) { showToast('Network error', 'error'); }
+        document.getElementById('ivLoading').classList.add('hidden');
+    }
+
+    function renderIvQuestion() {
+        const q = ivQuestions[ivCurrent];
+        if (!q) return;
+        document.getElementById('ivProgress').textContent = `Question ${ivCurrent + 1} of ${ivQuestions.length}`;
+        const diffEl = document.getElementById('ivDiff');
+        diffEl.textContent = q.difficulty || 'Medium';
+        diffEl.className = `badge badge-${q.difficulty === 'Easy' ? 'success' : q.difficulty === 'Hard' ? 'error' : 'warning'}`;
+        document.getElementById('ivType2').textContent = q.type || 'Technical';
+        document.getElementById('ivQuestion').textContent = q.question;
+        const fu = document.getElementById('ivFollowUp');
+        if (q.follow_up) { fu.textContent = '💬 Follow-up: ' + q.follow_up; fu.classList.remove('hidden'); }
+        else fu.classList.add('hidden');
+        document.getElementById('ivModelAnswer').textContent = q.answer || '';
+        const kp = document.getElementById('ivKeyPoints');
+        kp.innerHTML = q.key_points ? '<h5>Key Points:</h5><ul>' + q.key_points.map(p => `<li>${p}</li>`).join('') + '</ul>' : '';
+        document.getElementById('ivUserAnswer').value = '';
+        document.getElementById('ivEvalResult').classList.add('hidden');
+        updateDots();
+    }
+
+    function buildDots() {
+        const d = document.getElementById('ivDots');
+        d.innerHTML = ivQuestions.map((_, i) => `<button class="q-dot ${i === ivCurrent ? 'active' : ''}" onclick="jumpTo(${i})">${i + 1}</button>`).join('');
+    }
+
+    function updateDots() {
+        document.querySelectorAll('.q-dot').forEach((d, i) => d.classList.toggle('active', i === ivCurrent));
+    }
+    function jumpTo(i) { ivCurrent = i; renderIvQuestion(); }
+    function prevQuestion() { if (ivCurrent > 0) { ivCurrent--; renderIvQuestion(); } }
+    function nextIvQuestion() { if (ivCurrent < ivQuestions.length - 1) { ivCurrent++; renderIvQuestion(); } }
+
+    async function evaluateAnswer() {
+        const q = ivQuestions[ivCurrent];
+        const answer = document.getElementById('ivUserAnswer').value.trim();
+        if (!answer) { showToast('Write your answer first!', 'error'); return; }
+        showToast('AI is evaluating…', 'info');
+        try {
+            const res = await fetch('/api/interview/evaluate-answer', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: q.question, answer, model_answer: q.answer })
+            });
+            const data = await res.json();
+            if (data.success) renderEvaluation(data.evaluation);
+            else showToast(data.error || 'Failed', 'error');
+        } catch (e) { showToast('Network error', 'error'); }
+    }
+
+    function renderEvaluation(ev) {
+        const panel = document.getElementById('ivEvalResult');
+        panel.classList.remove('hidden');
+        document.getElementById('ivEvalScore').textContent = `${ev.score}/10`;
+        const grade = document.getElementById('ivEvalGrade');
+        grade.textContent = ev.grade || '';
+        grade.className = `badge badge-${ev.score >= 8 ? 'success' : ev.score >= 6 ? 'warning' : 'error'}`;
+        document.getElementById('ivEvalFeedback').textContent = ev.feedback || '';
+        const strengths = document.getElementById('ivStrengths');
+        strengths.innerHTML = ev.strengths ? '<h5>✅ Strengths</h5><ul>' + ev.strengths.map(s => `<li>${s}</li>`).join('') + '</ul>' : '';
+        const improvements = document.getElementById('ivImprovements');
+        improvements.innerHTML = ev.improvements ? '<h5>💡 Improvements</h5><ul>' + ev.improvements.map(i => `<li>${i}</li>`).join('') + '</ul>' : '';
+    }
+</script>
+{% endblock %}
