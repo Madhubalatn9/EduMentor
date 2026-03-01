@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Progress{% endblock %}
+{% block page_title %}📈 My Progress{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="progress-grid">
+    <!-- Summary Cards -->
+    <div class="pg-stats" id="pgStats">
+        <div class="stat-card card" style="--accent:#6366f1">
+            <div class="stat-icon">🗺️</div>
+            <div class="stat-value" id="pg-rm">–</div>
+            <div class="stat-label">Roadmaps</div>
+        </div>
+        <div class="stat-card card" style="--accent:#8b5cf6">
+            <div class="stat-icon">💻</div>
+            <div class="stat-value" id="pg-cd">–</div>
+            <div class="stat-label">Coding Sessions</div>
+        </div>
+        <div class="stat-card card" style="--accent:#0ea5e9">
+            <div class="stat-icon">📝</div>
+            <div class="stat-value" id="pg-qz">–</div>
+            <div class="stat-label">Quizzes</div>
+        </div>
+        <div class="stat-card card" style="--accent:#10b981">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-value" id="pg-iv">–</div>
+            <div class="stat-label">Interviews</div>
+        </div>
+        <div class="stat-card card" style="--accent:#f59e0b">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-value" id="pg-avg">–</div>
+            <div class="stat-label">Avg Quiz Score</div>
+        </div>
+        <div class="stat-card card" style="--accent:#ec4899">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="pg-pass">–</div>
+            <div class="stat-label">Problems Passed</div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+        <div class="card chart-card">
+            <h3 class="card-title">📊 Weekly Quiz Performance</h3>
+            <canvas id="weeklyChart" height="260"></canvas>
+        </div>
+        <div class="card chart-card">
+            <h3 class="card-title">🍩 Activity Breakdown</h3>
+            <canvas id="activityChart" height="260"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadProgress() {
+        try {
+            const res = await fetch('/api/progress/stats');
+            const data = await res.json();
+            const s = data.stats;
+            document.getElementById('pg-rm').textContent = s.roadmaps;
+            document.getElementById('pg-cd').textContent = s.coding;
+            document.getElementById('pg-qz').textContent = s.quizzes;
+            document.getElementById('pg-iv').textContent = s.interviews;
+            document.getElementById('pg-avg').textContent = s.avg_score + '%';
+            document.getElementById('pg-pass').textContent = s.coding_passed;
+
+            // Weekly Chart
+            const wCtx = document.getElementById('weeklyChart').getContext('2d');
+            new Chart(wCtx, {
+                type: 'line',
+                data: {
+                    labels: data.weekly_scores.map(w => w.label),
+                    datasets: [{
+                        label: 'Quiz Score (%)',
+                        data: data.weekly_scores.map(w => w.score),
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99,102,241,0.15)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#6366f1',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { min: 0, max: 100, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+
+            // Activity Doughnut
+            const aCtx = document.getElementById('activityChart').getContext('2d');
+            new Chart(aCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.activity.map(a => a.label),
+                    datasets: [{
+                        data: data.activity.map(a => a.value),
+                        backgroundColor: data.activity.map(a => a.color),
+                        borderColor: 'rgba(255,255,255,0.05)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 15 } }
+                    }
+                }
+            });
+        } catch (e) { showToast('Failed to load progress', 'error'); }
+    }
+
+    loadProgress();
+</script>
+{% endblock %}

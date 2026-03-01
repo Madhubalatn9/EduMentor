@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Course Roadmap{% endblock %}
+{% block page_title %}🗺️ Course Roadmap Generator{% endblock %}
+
+{% block content %}
+<div class="module-layout">
+    <!-- Generator Panel -->
+    <div class="panel card">
+        <h3 class="card-title">Generate Roadmap</h3>
+        <div class="form-group">
+            <label class="form-label">Skill / Topic</label>
+            <input type="text" id="rmSkill" class="form-input" placeholder="e.g. Machine Learning, React, SQL..."
+                value="{{ current_user.skill or '' }}" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Level</label>
+            <select id="rmLevel" class="form-input">
+                <option {% if current_user.level=='Beginner' %}selected{% endif %}>Beginner</option>
+                <option {% if current_user.level=='Intermediate' %}selected{% endif %}>Intermediate</option>
+                <option {% if current_user.level=='Advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Duration (weeks)</label>
+            <select id="rmDuration" class="form-input">
+                <option value="4">4 Weeks</option>
+                <option value="8" selected>8 Weeks</option>
+                <option value="12">12 Weeks</option>
+                <option value="16">16 Weeks</option>
+            </select>
+        </div>
+        <button id="generateRmBtn" class="btn btn-primary btn-full" onclick="generateRoadmap()">
+            ✨ Generate Roadmap
+        </button>
+
+        <!-- Saved Roadmaps -->
+        {% if saved_roadmaps %}
+        <div class="saved-section">
+            <h4 class="saved-title">Saved Roadmaps</h4>
+            {% for r in saved_roadmaps %}
+            <div class="saved-item" onclick="loadRoadmap({{ r.id }})">
+                <span class="saved-icon">🗺️</span>
+                <div>
+                    <div class="saved-name">{{ r.skill }}</div>
+                    <div class="saved-meta">{{ r.level }} · {{ r.created_at.strftime('%b %d, %Y') }}</div>
+                </div>
+                <button class="del-btn" onclick="event.stopPropagation(); deleteRoadmap({{ r.id }}, this)">✕</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Roadmap Display -->
+    <div class="content-panel">
+        <div id="rmLoading" class="loader-container hidden">
+            <div class="loader"></div>
+            <p>AI is crafting your roadmap…</p>
+        </div>
+        <div id="rmEmpty" class="empty-state">
+            <div class="empty-icon">🗺️</div>
+            <h3>Ready to map your journey?</h3>
+            <p>Enter a skill and generate your personalized learning roadmap powered by AI.</p>
+        </div>
+        <div id="rmResult" class="hidden">
+            <div class="roadmap-header">
+                <div>
+                    <h2 id="rmTitle" class="roadmap-title"></h2>
+                    <p id="rmOverview" class="roadmap-overview"></p>
+                </div>
+                <button class="btn btn-outline" onclick="saveCurrentRoadmap()">💾 Save</button>
+            </div>
+            <div id="rmWeeks" class="weeks-timeline"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentRoadmap = null;
+
+    async function generateRoadmap() {
+        const skill = document.getElementById('rmSkill').value.trim();
+        const level = document.getElementById('rmLevel').value;
+        const duration = document.getElementById('rmDuration').value;
+        if (!skill) { showToast('Please enter a skill!', 'error'); return; }
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/roadmap/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skill, level, duration: parseInt(duration) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentRoadmap = data.roadmap;
+                renderRoadmap(data.roadmap);
+            } else {
+                showToast(data.error || 'Failed to generate roadmap', 'error');
+            }
+        } catch (e) { showToast('Network error', 'error'); }
+        setLoading(false);
+    }
+
+    function setLoading(on) {
+        document.getElementById('rmLoading').classList.toggle('hidden', !on);
+        document.getElementById('rmEmpty').classList.toggle('hidden', on);
+        document.getElementById('rmResult').classList.add('hidden');
+        document.getElementById('generateRmBtn').disabled = on;
+    }
+
+    function renderRoadmap(rm) {
+        document.getElementById('rmEmpty').classList.add('hidden');
+        document.getElementById('rmLoading').classList.add('hidden');
+        document.getElementById('rmResult').classList.remove('hidden');
+        document.getElementById('rmTitle').textContent = rm.title || `${rm.skill} Roadmap`;
+        document.getElementById('rmOverview').textContent = rm.overview || '';
+
+        const container = document.getElementById('rmWeeks');
+        container.innerHTML = '';
+        (rm.weeks || []).forEach((w, i) => {
+            const card = document.createElement('div');
+            card.className = 'week-card card';
+            card.innerHTML = `
+      <div class="week-header">
+        <div class="week-number">Week ${w.week}</div>
+        <div class="week-title">${w.title}</div>
+        <div class="week-focus badge">${w.focus || ''}</div>
+      </div>
+      <div class="week-body">
+        <div class="week-section">
+          <h5>📚 Topics</h5>
+          <ul>${(w.topics || []).map(t => `<li>${t}</li>`).join('')}</ul>
+        </div>
+        <div class="week-section">
+          <h5>🎯 Goals</h5>
+          <ul>${(w.goals || []).map(g => `<li>${g}</li>`).join('')}</ul>
+        </div>
+        <div class="week-section">
+          <h5>🔗 Resources</h5>
+          <ul>${(w.resources || []).map(r => `<li>${r}</li>`).join('')}</ul>
+        </div>
+        ${w.project ? `<div class="week-project">🚀 <strong>Project:</strong> ${w.project}</div>` : ''}
+      </div>`;
+            card.style.animationDelay = `${i * 0.05}s`;
+            card.classList.add('fade-in');
+            container.appendChild(card);
+        });
+    }
+
+    async function saveCurrentRoadmap() {
+        if (!currentRoadmap) return;
+        const res = await fetch('/api/roadmap/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ skill: currentRoadmap.skill, level: currentRoadmap.level, content: currentRoadmap })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('Roadmap saved! 💾', 'success'); location.reload(); }
+        else showToast('Save failed', 'error');
+    }
+
+    async function loadRoadmap(id) {
+        const res = await fetch(`/api/roadmap/${id}`);
+        const data = await res.json();
+        if (data.success) { currentRoadmap = data.roadmap; renderRoadmap(data.roadmap); }
+    }
+
+    async function deleteRoadmap(id, btn) {
+        if (!confirm('Delete this roadmap?')) return;
+        const res = await fetch(`/api/roadmap/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { btn.closest('.saved-item').remove(); showToast('Deleted', 'success'); }
+    }
+</script>
+{% endblock %}
