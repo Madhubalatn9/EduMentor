@@ -1,81 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>{% block title %}EduMentor{% endblock %} – AI Learning Platform</title>
-  <meta name="description" content="EduMentor – AI-powered personalized learning with course roadmaps, coding IDE, quizzes and interview prep."/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}"/>
+  <meta name="description"
+    content="EduMentor – AI-powered personalized learning with course roadmaps, coding IDE, quizzes and interview prep." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
   {% block extra_css %}{% endblock %}
 </head>
+
 <body>
 
-{% if current_user.is_authenticated %}
-<!-- ──── SIDEBAR ──── -->
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-brand">
-    <div class="brand-icon">🎓</div>
-    <span class="brand-name">EduMentor</span>
-  </div>
-  <nav class="sidebar-nav">
-    <a href="{{ url_for('main.dashboard') }}"   class="nav-link {% if request.endpoint=='main.dashboard' %}active{% endif %}">
-      <span class="nav-icon">📊</span><span>Dashboard</span></a>
-    <a href="{{ url_for('roadmap.roadmap') }}"  class="nav-link {% if request.endpoint=='roadmap.roadmap' %}active{% endif %}">
-      <span class="nav-icon">🗺️</span><span>Course Roadmap</span></a>
-    <a href="{{ url_for('ide.ide') }}"          class="nav-link {% if request.endpoint=='ide.ide' %}active{% endif %}">
-      <span class="nav-icon">💻</span><span>Coding IDE</span></a>
-    <a href="{{ url_for('quiz.quiz') }}"        class="nav-link {% if request.endpoint=='quiz.quiz' %}active{% endif %}">
-      <span class="nav-icon">📝</span><span>Quiz</span></a>
-    <a href="{{ url_for('interview.interview') }}" class="nav-link {% if request.endpoint=='interview.interview' %}active{% endif %}">
-      <span class="nav-icon">🎯</span><span>Interview Prep</span></a>
-    <a href="{{ url_for('progress.progress') }}" class="nav-link {% if request.endpoint=='progress.progress' %}active{% endif %}">
-      <span class="nav-icon">📈</span><span>Progress</span></a>
-  </nav>
-  <div class="sidebar-footer">
-    <div class="sidebar-user">
-      <div class="avatar">{{ current_user.username[0]|upper }}</div>
-      <div class="sidebar-user-info">
-        <span class="u-name">{{ current_user.username }}</span>
-        <span class="u-skill">{{ current_user.skill or 'No skill set' }}</span>
+  {% if current_user.is_authenticated %}
+  <!-- ──── SIDEBAR ──── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🎓</div>
+      <span class="brand-name">EduMentor</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('main.dashboard') }}"
+        class="nav-link {% if request.endpoint=='main.dashboard' %}active{% endif %}">
+        <span class="nav-icon">📊</span><span>Dashboard</span></a>
+      <a href="{{ url_for('roadmap.roadmap') }}"
+        class="nav-link {% if request.endpoint=='roadmap.roadmap' %}active{% endif %}">
+        <span class="nav-icon">🗺️</span><span>Course Roadmap</span></a>
+      <a href="{{ url_for('course.course') }}"
+        class="nav-link {% if request.endpoint=='course.course' %}active{% endif %}">
+        <span class="nav-icon">📚</span><span>Dynamic Course</span></a>
+      <a href="{{ url_for('ide.ide') }}" class="nav-link {% if request.endpoint=='ide.ide' %}active{% endif %}">
+        <span class="nav-icon">💻</span><span>Coding IDE</span></a>
+      <a href="{{ url_for('quiz.quiz') }}" class="nav-link {% if request.endpoint=='quiz.quiz' %}active{% endif %}">
+        <span class="nav-icon">📝</span><span>Quiz</span></a>
+      <a href="{{ url_for('interview.interview') }}"
+        class="nav-link {% if request.endpoint=='interview.interview' %}active{% endif %}">
+        <span class="nav-icon">🎯</span><span>Interview Prep</span></a>
+      <a href="{{ url_for('progress.progress') }}"
+        class="nav-link {% if request.endpoint=='progress.progress' %}active{% endif %}">
+        <span class="nav-icon">📈</span><span>Progress</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar">{{ current_user.username[0]|upper }}</div>
+        <div class="sidebar-user-info">
+          <span class="u-name">{{ current_user.username }}</span>
+          <span class="u-skill">{{ current_user.skill or 'No skill set' }}</span>
+        </div>
       </div>
+      <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Logout">⏻</a>
     </div>
-    <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Logout">⏻</a>
-  </div>
-</aside>
+  </aside>
 
-<!-- ──── MAIN CONTENT ──── -->
-<div class="app-layout">
-  <header class="topbar">
-    <button class="hamburger" id="hamburger" onclick="toggleSidebar()">☰</button>
-    <h1 class="page-heading">{% block page_title %}{% endblock %}</h1>
-    <div class="topbar-right">
-      <div class="avatar small">{{ current_user.username[0]|upper }}</div>
+  <!-- ──── MAIN CONTENT ──── -->
+  <div class="app-layout">
+    <header class="topbar">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()">☰</button>
+      <h1 class="page-heading">{% block page_title %}{% endblock %}</h1>
+      <div class="topbar-right">
+        <div class="avatar small">{{ current_user.username[0]|upper }}</div>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }} <button onclick="this.parentElement.remove()">✕</button></div>
+      {% endfor %}
     </div>
-  </header>
+    {% endif %}
+    {% endwith %}
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-  <div class="flash-container">
-    {% for cat, msg in messages %}
-    <div class="flash flash-{{ cat }}">{{ msg }} <button onclick="this.parentElement.remove()">✕</button></div>
-    {% endfor %}
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
   </div>
+
+  {% else %}
+  {% block public_content %}{% endblock %}
   {% endif %}
-  {% endwith %}
 
-  <main class="page-content">
-    {% block content %}{% endblock %}
-  </main>
-</div>
-
-{% else %}
-{% block public_content %}{% endblock %}
-{% endif %}
-
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
-{% block extra_js %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_js %}{% endblock %}
 </body>
+
 </html>

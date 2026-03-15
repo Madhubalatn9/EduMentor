@@ -28,6 +28,7 @@ def create_app():
     from routes.quiz import quiz_bp
     from routes.interview import interview_bp
     from routes.progress import progress_bp
+    from routes.course import course_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -36,6 +37,7 @@ def create_app():
     app.register_blueprint(quiz_bp)
     app.register_blueprint(interview_bp)
     app.register_blueprint(progress_bp)
+    app.register_blueprint(course_bp)
 
     with app.app_context():
         db.create_all()

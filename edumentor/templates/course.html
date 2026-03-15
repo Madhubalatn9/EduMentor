@@ -1,0 +1,545 @@
+{% extends 'base.html' %}
+{% block title %}Dynamic Course{% endblock %}
+{% block page_title %}📚 Dynamic Course Generator{% endblock %}
+
+{% block content %}
+<div class="course-layout">
+    <!-- ─── LEFT PANEL ─── -->
+    <div class="card panel course-panel" id="coursePanel">
+        <!-- Generation Form -->
+        <div id="courseForm">
+            <h3 class="card-title">🎓 Generate a Course</h3>
+            <p style="color:var(--text2); font-size:.85rem; margin:-0.75rem 0 1.25rem;">
+                AI creates a full curriculum. Lessons are generated <strong
+                    style="color:var(--cyan)">dynamically</strong> when you open them.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Skill / Topic</label>
+                <input type="text" class="form-input" id="courseSkill"
+                    placeholder="e.g. Python, React, Machine Learning" value="{{ current_user.skill or '' }}" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Level</label>
+                    <select class="form-input" id="courseLevel">
+                        <option {% if current_user.level=='Beginner' %}selected{% endif %}>Beginner</option>
+                        <option {% if current_user.level=='Intermediate' %}selected{% endif %}>Intermediate</option>
+                        <option {% if current_user.level=='Advanced' %}selected{% endif %}>Advanced</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Modules</label>
+                    <select class="form-input" id="courseModules">
+                        <option value="3">3 Modules</option>
+                        <option value="5" selected>5 Modules</option>
+                        <option value="7">7 Modules</option>
+                        <option value="10">10 Modules</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-full" id="generateBtn" onclick="generateCourse()">
+                ✨ Generate Course
+            </button>
+        </div>
+
+        <!-- Course Curriculum (shown after generation) -->
+        <div id="courseCurriculum" class="hidden">
+            <div class="cur-header">
+                <button class="btn btn-outline btn-sm" onclick="showOverview()" id="overviewBtn">📖 Overview</button>
+                <button class="btn btn-outline btn-sm" onclick="newCourse()">✚ New</button>
+            </div>
+            <div class="cur-progress">
+                <div class="cur-progress-info">
+                    <span id="progressPct">0%</span>
+                    <span id="progressCount">0/0 lessons</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+                </div>
+            </div>
+            <div id="moduleList" class="module-tree"></div>
+            <div style="margin-top:1rem; display:flex; gap:.5rem;">
+                <button class="btn btn-primary btn-full btn-sm" id="saveBtn" onclick="saveCourse()">💾 Save</button>
+            </div>
+        </div>
+
+        <!-- Saved Courses -->
+        <div class="saved-section" id="savedSection">
+            <div class="saved-title">📚 Saved Courses</div>
+            {% if saved_courses %}
+            {% for c in saved_courses %}
+            <div class="saved-item" onclick="loadCourse({{ c.id }})" id="saved-{{ c.id }}">
+                <span class="saved-icon">📖</span>
+                <div>
+                    <div class="saved-name">{{ c.title|truncate(30) }}</div>
+                    <div class="saved-meta">{{ c.skill }} · {{ c.level }}</div>
+                </div>
+                <button class="del-btn" onclick="event.stopPropagation(); deleteCourse({{ c.id }})">🗑️</button>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state small" id="noSaved">
+                <p style="font-size:.8rem;">No saved courses yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ─── RIGHT PANEL ─── -->
+    <div class="card content-panel course-content" id="courseContent">
+        <!-- Empty State -->
+        <div id="courseEmpty" class="empty-state">
+            <div class="empty-icon">📚</div>
+            <h3>Dynamic Course Generator</h3>
+            <p>Generate a personalized course on any topic.<br>
+                The AI creates the full curriculum structure, and each<br>
+                lesson's content is <strong>generated dynamically</strong> when you click on it.</p>
+        </div>
+
+        <!-- Loading -->
+        <div id="courseLoader" class="loader-container hidden">
+            <div class="loader"></div>
+            <p id="loaderText">Generating your personalized course...</p>
+        </div>
+
+        <!-- Course Overview -->
+        <div id="courseOverview" class="hidden"></div>
+
+        <!-- Lesson Viewer -->
+        <div id="lessonViewer" class="hidden"></div>
+    </div>
+</div>
+
+<script>
+    /* ─── STATE ───────────────────────────── */
+    let currentCourse = null;
+    let currentCourseId = null;
+    let completedLessons = [];
+    let activeLessonKey = null;
+
+    /* ─── GENERATE COURSE ─────────────────── */
+    async function generateCourse() {
+        const skill = document.getElementById('courseSkill').value.trim();
+        const level = document.getElementById('courseLevel').value;
+        const modules = document.getElementById('courseModules').value;
+        if (!skill) { showToast('Please enter a skill or topic', 'error'); return; }
+
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true; btn.textContent = '⏳ Generating...';
+        showPanel('loader'); document.getElementById('loaderText').textContent = 'Generating your personalized course…';
+
+        try {
+            const res = await fetch('/api/course/generate', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skill, level, modules: parseInt(modules) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentCourse = data.course;
+                currentCourseId = null;
+                completedLessons = [];
+                renderCurriculum();
+                showOverview();
+                showToast('Course generated successfully!', 'success');
+            } else {
+                showPanel('empty');
+                showToast(data.error || 'Generation failed', 'error');
+            }
+        } catch (e) {
+            showPanel('empty');
+            showToast('Network error: ' + e.message, 'error');
+        }
+        btn.disabled = false; btn.textContent = '✨ Generate Course';
+    }
+
+    /* ─── RENDER CURRICULUM TREE ──────────── */
+    function renderCurriculum() {
+        document.getElementById('courseForm').classList.add('hidden');
+        document.getElementById('courseCurriculum').classList.remove('hidden');
+        const list = document.getElementById('moduleList');
+        list.innerHTML = '';
+
+        (currentCourse.modules || []).forEach(mod => {
+            const modEl = document.createElement('div');
+            modEl.className = 'mod-item';
+            const lessonCount = (mod.lessons || []).length;
+            const completedInMod = (mod.lessons || []).filter(l => completedLessons.includes(`${mod.id}-${l.id}`)).length;
+
+            modEl.innerHTML = `
+            <div class="mod-header" onclick="toggleModule(${mod.id})">
+                <span class="mod-arrow" id="arrow-${mod.id}">▸</span>
+                <span class="mod-title">${mod.title}</span>
+                <span class="mod-count badge ${completedInMod === lessonCount && lessonCount > 0 ? 'badge-success' : 'badge-secondary'}">${completedInMod}/${lessonCount}</span>
+            </div>
+            <div class="mod-lessons hidden" id="lessons-${mod.id}">
+                ${(mod.lessons || []).map(l => {
+                const key = `${mod.id}-${l.id}`;
+                const done = completedLessons.includes(key);
+                const typeClass = l.type === 'practice' ? 'lesson-practice' : l.type === 'project' ? 'lesson-project' : 'lesson-theory';
+                return `<div class="lesson-item ${done ? 'completed' : ''} ${activeLessonKey === key ? 'active' : ''} ${typeClass}" 
+                                onclick="loadLesson(${mod.id}, ${l.id})" id="lesson-${key}">
+                        <span class="lesson-check">${done ? '✅' : '○'}</span>
+                        <div class="lesson-info">
+                            <span class="lesson-name">${l.title}</span>
+                            <span class="lesson-meta">${l.duration || '15 min'} · ${l.type || 'theory'}</span>
+                        </div>
+                    </div>`;
+            }).join('')}
+            </div>`;
+            list.appendChild(modEl);
+        });
+
+        updateProgress();
+        // Auto-expand first module
+        if (currentCourse.modules && currentCourse.modules.length > 0) {
+            toggleModule(currentCourse.modules[0].id);
+        }
+    }
+
+    function toggleModule(modId) {
+        const lessons = document.getElementById(`lessons-${modId}`);
+        const arrow = document.getElementById(`arrow-${modId}`);
+        if (lessons) {
+            lessons.classList.toggle('hidden');
+            arrow.textContent = lessons.classList.contains('hidden') ? '▸' : '▾';
+        }
+    }
+
+    /* ─── SHOW COURSE OVERVIEW ────────────── */
+    function showOverview() {
+        if (!currentCourse) return;
+        const c = currentCourse;
+        const totalLessons = c.total_lessons || (c.modules || []).reduce((s, m) => s + (m.lessons || []).length, 0);
+        const theoryCount = (c.modules || []).reduce((s, m) => s + (m.lessons || []).filter(l => l.type === 'theory').length, 0);
+        const practiceCount = (c.modules || []).reduce((s, m) => s + (m.lessons || []).filter(l => l.type === 'practice').length, 0);
+        const projectCount = (c.modules || []).reduce((s, m) => s + (m.lessons || []).filter(l => l.type === 'project').length, 0);
+
+        document.getElementById('courseOverview').innerHTML = `
+        <div class="co-header">
+            <div class="co-badge">✨ AI-Generated Course</div>
+            <h2 class="co-title">${c.title || 'Untitled Course'}</h2>
+            <p class="co-desc">${c.description || ''}</p>
+            <div class="co-tags">
+                <span class="chip">${c.skill || ''}</span>
+                <span class="chip">${c.level || ''}</span>
+                <span class="chip">${c.total_modules || c.modules.length} Modules</span>
+                <span class="chip">${totalLessons} Lessons</span>
+            </div>
+        </div>
+        <div class="co-stats">
+            <div class="co-stat" style="--c:var(--cyan)">
+                <div class="co-stat-val">${theoryCount}</div>
+                <div class="co-stat-label">📘 Theory</div>
+            </div>
+            <div class="co-stat" style="--c:var(--green)">
+                <div class="co-stat-val">${practiceCount}</div>
+                <div class="co-stat-label">💻 Practice</div>
+            </div>
+            <div class="co-stat" style="--c:var(--amber)">
+                <div class="co-stat-val">${projectCount}</div>
+                <div class="co-stat-label">🚀 Projects</div>
+            </div>
+            <div class="co-stat" style="--c:var(--primary)">
+                <div class="co-stat-val">${completedLessons.length}</div>
+                <div class="co-stat-label">✅ Done</div>
+            </div>
+        </div>
+        <div class="co-modules">
+            <h3 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">📋 Module Overview</h3>
+            ${(c.modules || []).map((m, i) => `
+                <div class="co-module-item" onclick="toggleModule(${m.id}); document.getElementById('moduleList').scrollIntoView({behavior:'smooth'});">
+                    <div class="co-module-num">${i + 1}</div>
+                    <div>
+                        <div class="co-module-name">${m.title}</div>
+                        <div class="co-module-desc">${m.description || ''}</div>
+                        <div class="co-module-meta">${(m.lessons || []).length} lessons</div>
+                    </div>
+                </div>`).join('')}
+        </div>`;
+        activeLessonKey = null;
+        showPanel('overview');
+        highlightActiveLesson();
+    }
+
+    /* ─── LOAD LESSON (DYNAMIC GENERATION) ── */
+    async function loadLesson(moduleId, lessonId) {
+        const mod = (currentCourse.modules || []).find(m => m.id === moduleId);
+        if (!mod) return;
+        const lesson = (mod.lessons || []).find(l => l.id === lessonId);
+        if (!lesson) return;
+
+        activeLessonKey = `${moduleId}-${lessonId}`;
+        highlightActiveLesson();
+
+        showPanel('loader');
+        document.getElementById('loaderText').textContent = `Generating lesson: ${lesson.title}…`;
+
+        try {
+            const res = await fetch('/api/course/generate-lesson', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course_title: currentCourse.title,
+                    skill: currentCourse.skill,
+                    level: currentCourse.level,
+                    module_title: mod.title,
+                    lesson_title: lesson.title,
+                    lesson_type: lesson.type || 'theory',
+                    course_id: currentCourseId,
+                    module_id: moduleId,
+                    lesson_id: lessonId
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                renderLesson(data.lesson, mod, lesson, data.cached);
+            } else {
+                showPanel('empty');
+                showToast(data.error || 'Failed to generate lesson', 'error');
+            }
+        } catch (e) {
+            showPanel('empty');
+            showToast('Network error: ' + e.message, 'error');
+        }
+    }
+
+    /* ─── RENDER LESSON CONTENT ───────────── */
+    function renderLesson(data, mod, lessonMeta, cached) {
+        const key = activeLessonKey;
+        const isDone = completedLessons.includes(key);
+        const typeIcon = lessonMeta.type === 'practice' ? '💻' : lessonMeta.type === 'project' ? '🚀' : '📘';
+        const typeLabel = (lessonMeta.type || 'theory').charAt(0).toUpperCase() + (lessonMeta.type || 'theory').slice(1);
+
+        let html = `
+        <div class="lv-header">
+            <div class="lv-breadcrumb">
+                <span onclick="showOverview()" style="cursor:pointer; color:var(--primary);">Course</span>
+                <span style="color:var(--text3);"> ▸ </span>
+                <span style="color:var(--text2);">${mod.title}</span>
+            </div>
+            <h2 class="lv-title">${data.title || lessonMeta.title}</h2>
+            <div class="lv-meta-row">
+                <span class="badge badge-${lessonMeta.type === 'practice' ? 'success' : lessonMeta.type === 'project' ? 'warning' : 'secondary'}">${typeIcon} ${typeLabel}</span>
+                <span class="badge">${lessonMeta.duration || '15 min'}</span>
+                ${cached ? '<span class="badge badge-success">⚡ Cached</span>' : '<span class="badge" style="background:rgba(236,72,153,.15);color:var(--pink)">✨ Fresh</span>'}
+            </div>
+        </div>
+        <div class="lv-body">`;
+
+        // Content
+        if (data.content) {
+            const paragraphs = data.content.split('\n').filter(p => p.trim());
+            html += `<div class="lv-section"><div class="lv-text">${paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('')}</div></div>`;
+        }
+
+        // Code Examples
+        if (data.code_examples && data.code_examples.length > 0) {
+            html += `<div class="lv-section"><h3 class="lv-section-title">💻 Code Examples</h3>`;
+            data.code_examples.forEach(ex => {
+                html += `
+                <div class="code-example-card">
+                    <div class="code-ex-title">${escapeHtml(ex.title || 'Example')}</div>
+                    <div class="code-ex-block"><pre><code>${escapeHtml(ex.code || '')}</code></pre></div>
+                    ${ex.explanation ? `<div class="code-ex-explain">${escapeHtml(ex.explanation)}</div>` : ''}
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Key Takeaways
+        if (data.key_takeaways && data.key_takeaways.length > 0) {
+            html += `<div class="lv-section"><h3 class="lv-section-title">🎯 Key Takeaways</h3><ul class="lv-takeaways">`;
+            data.key_takeaways.forEach(t => { html += `<li>${escapeHtml(t)}</li>`; });
+            html += `</ul></div>`;
+        }
+
+        // Exercises
+        if (data.exercises && data.exercises.length > 0) {
+            html += `<div class="lv-section"><h3 class="lv-section-title">✏️ Exercises</h3>`;
+            data.exercises.forEach((ex, i) => {
+                html += `
+                <div class="exercise-card">
+                    <div class="ex-question"><strong>Exercise ${i + 1}:</strong> ${escapeHtml(ex.question || '')}</div>
+                    ${ex.hint ? `<div class="ex-hint">💡 <em>Hint: ${escapeHtml(ex.hint)}</em></div>` : ''}
+                    ${ex.solution ? `<details class="ex-solution"><summary>View Solution</summary><pre><code>${escapeHtml(ex.solution)}</code></pre></details>` : ''}
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Summary
+        if (data.summary) {
+            html += `<div class="lv-section lv-summary"><h3 class="lv-section-title">📝 Summary</h3><p>${escapeHtml(data.summary)}</p></div>`;
+        }
+
+        // Actions
+        html += `</div>
+        <div class="lv-actions">
+            <button class="btn ${isDone ? 'btn-outline' : 'btn-primary'}" onclick="toggleComplete()" id="completeBtn">
+                ${isDone ? '↩ Mark Incomplete' : '✅ Mark Complete'}
+            </button>
+            ${getNextLessonBtn()}
+        </div>`;
+
+        document.getElementById('lessonViewer').innerHTML = html;
+        showPanel('lesson');
+    }
+
+    function getNextLessonBtn() {
+        if (!activeLessonKey || !currentCourse) return '';
+        const [mId, lId] = activeLessonKey.split('-').map(Number);
+        const mod = currentCourse.modules.find(m => m.id === mId);
+        if (!mod) return '';
+        const lIdx = mod.lessons.findIndex(l => l.id === lId);
+        // Next lesson in same module
+        if (lIdx < mod.lessons.length - 1) {
+            const next = mod.lessons[lIdx + 1];
+            return `<button class="btn btn-secondary" onclick="loadLesson(${mId}, ${next.id})">Next: ${escapeHtml(next.title)} →</button>`;
+        }
+        // First lesson of next module
+        const mIdx = currentCourse.modules.findIndex(m => m.id === mId);
+        if (mIdx < currentCourse.modules.length - 1) {
+            const nextMod = currentCourse.modules[mIdx + 1];
+            if (nextMod.lessons && nextMod.lessons.length > 0) {
+                return `<button class="btn btn-secondary" onclick="loadLesson(${nextMod.id}, ${nextMod.lessons[0].id})">Next Module →</button>`;
+            }
+        }
+        return '<span class="badge badge-success">🎉 Course Complete!</span>';
+    }
+
+    /* ─── COMPLETION TRACKING ─────────────── */
+    async function toggleComplete() {
+        if (!activeLessonKey) return;
+
+        if (currentCourseId) {
+            try {
+                const res = await fetch(`/api/course/${currentCourseId}/complete-lesson`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lesson_key: activeLessonKey })
+                });
+                const data = await res.json();
+                if (data.success) completedLessons = data.completed;
+            } catch (e) { /* toggle locally */ }
+        }
+        // Toggle locally if not saved
+        if (!currentCourseId) {
+            if (completedLessons.includes(activeLessonKey)) {
+                completedLessons = completedLessons.filter(k => k !== activeLessonKey);
+            } else {
+                completedLessons.push(activeLessonKey);
+            }
+        }
+
+        renderCurriculum();
+        // Re-highlight and update button
+        const isDone = completedLessons.includes(activeLessonKey);
+        const btn = document.getElementById('completeBtn');
+        if (btn) {
+            btn.className = `btn ${isDone ? 'btn-outline' : 'btn-primary'}`;
+            btn.innerHTML = isDone ? '↩ Mark Incomplete' : '✅ Mark Complete';
+        }
+        highlightActiveLesson();
+        showToast(isDone ? 'Lesson marked complete! 🎉' : 'Lesson unmarked', isDone ? 'success' : 'info');
+    }
+
+    function updateProgress() {
+        const total = currentCourse.total_lessons ||
+            (currentCourse.modules || []).reduce((s, m) => s + (m.lessons || []).length, 0);
+        const done = completedLessons.length;
+        const pct = total > 0 ? Math.round(done / total * 100) : 0;
+        document.getElementById('progressPct').textContent = pct + '%';
+        document.getElementById('progressCount').textContent = `${done}/${total} lessons`;
+        document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function highlightActiveLesson() {
+        document.querySelectorAll('.lesson-item').forEach(el => el.classList.remove('active'));
+        if (activeLessonKey) {
+            const el = document.getElementById(`lesson-${activeLessonKey}`);
+            if (el) el.classList.add('active');
+        }
+    }
+
+    /* ─── SAVE / LOAD / DELETE ────────────── */
+    async function saveCourse() {
+        if (!currentCourse) return;
+        if (currentCourseId) { showToast('Course already saved', 'info'); return; }
+        try {
+            const res = await fetch('/api/course/save', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ course: currentCourse })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentCourseId = data.id;
+                showToast('Course saved! 💾', 'success');
+                document.getElementById('saveBtn').textContent = '✅ Saved';
+                document.getElementById('saveBtn').disabled = true;
+                // Add to saved list
+                const savedSection = document.getElementById('savedSection');
+                const noSaved = document.getElementById('noSaved');
+                if (noSaved) noSaved.remove();
+                const item = document.createElement('div');
+                item.className = 'saved-item';
+                item.id = `saved-${data.id}`;
+                item.onclick = () => loadCourse(data.id);
+                item.innerHTML = `<span class="saved-icon">📖</span><div><div class="saved-name">${currentCourse.title}</div><div class="saved-meta">${currentCourse.skill} · ${currentCourse.level}</div></div><button class="del-btn" onclick="event.stopPropagation(); deleteCourse(${data.id})">🗑️</button>`;
+                savedSection.appendChild(item);
+            }
+        } catch (e) { showToast('Save failed: ' + e.message, 'error'); }
+    }
+
+    async function loadCourse(id) {
+        showPanel('loader');
+        document.getElementById('loaderText').textContent = 'Loading course…';
+        try {
+            const res = await fetch(`/api/course/${id}`);
+            const data = await res.json();
+            if (data.success) {
+                currentCourse = data.course;
+                currentCourseId = data.id;
+                completedLessons = data.completed_lessons || [];
+                renderCurriculum();
+                showOverview();
+                document.getElementById('saveBtn').textContent = '✅ Saved';
+                document.getElementById('saveBtn').disabled = true;
+                showToast('Course loaded!', 'success');
+            }
+        } catch (e) { showPanel('empty'); showToast('Load failed', 'error'); }
+    }
+
+    async function deleteCourse(id) {
+        if (!confirm('Delete this course?')) return;
+        try {
+            await fetch(`/api/course/${id}`, { method: 'DELETE' });
+            const el = document.getElementById(`saved-${id}`);
+            if (el) el.remove();
+            if (currentCourseId === id) { currentCourseId = null; newCourse(); }
+            showToast('Course deleted', 'info');
+        } catch (e) { showToast('Delete failed', 'error'); }
+    }
+
+    /* ─── UI HELPERS ──────────────────────── */
+    function newCourse() {
+        currentCourse = null; currentCourseId = null;
+        completedLessons = []; activeLessonKey = null;
+        document.getElementById('courseForm').classList.remove('hidden');
+        document.getElementById('courseCurriculum').classList.add('hidden');
+        document.getElementById('saveBtn').textContent = '💾 Save';
+        document.getElementById('saveBtn').disabled = false;
+        showPanel('empty');
+    }
+
+    function showPanel(panel) {
+        ['courseEmpty', 'courseLoader', 'courseOverview', 'lessonViewer'].forEach(id => {
+            document.getElementById(id).classList.add('hidden');
+        });
+        const map = { empty: 'courseEmpty', loader: 'courseLoader', overview: 'courseOverview', lesson: 'lessonViewer' };
+        if (map[panel]) document.getElementById(map[panel]).classList.remove('hidden');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+</script>
+{% endblock %}

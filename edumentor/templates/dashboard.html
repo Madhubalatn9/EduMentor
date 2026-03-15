@@ -38,6 +38,12 @@
         <div class="stat-label">Interview Sessions</div>
         <a href="{{ url_for('interview.interview') }}" class="stat-link">Prepare →</a>
     </div>
+    <div class="stat-card card" style="--accent:#06b6d4">
+        <div class="stat-icon">📚</div>
+        <div class="stat-value">{{ stats.courses }}</div>
+        <div class="stat-label">Dynamic Courses</div>
+        <a href="{{ url_for('course.course') }}" class="stat-link">Generate →</a>
+    </div>
     <div class="stat-card card" style="--accent:#f59e0b">
         <div class="stat-icon">⭐</div>
         <div class="stat-value">{{ stats.avg_score }}%</div>

@@ -1,0 +1,199 @@
+================================================================================
+                          EDUMENTOR – PROJECT IDEA
+            AI-Powered Course Generation & Personalized Learning
+================================================================================
+
+1. PROBLEM STATEMENT
+─────────────────────────────────────────────────────────────────────────────────
+
+The traditional approach to learning programming and technical skills suffers
+from several critical challenges:
+
+  • Static, one-size-fits-all courses: Conventional platforms offer fixed
+    curricula that cannot adapt to the individual learner's pace, prior
+    knowledge, or specific goals. A beginner and an intermediate learner
+    receive the same course structure, leading to boredom or overwhelm.
+
+  • No dynamic course creation: Creating a quality course requires
+    significant manual effort by educators. Learners who want a custom
+    course on a niche topic (e.g., "Rust for systems programming" or
+    "Machine Learning for healthcare") have limited options available.
+
+  • Lack of personalized guidance: Students often struggle to determine
+    which topics to study, in what order, and what resources to use,
+    leading to unfocused and inefficient learning journeys.
+
+  • Fragmented learning tools: Students must juggle multiple disconnected
+    platforms — one for courses, another for coding practice, another for
+    quizzes, and another for interview prep — causing context loss and
+    friction in the learning process.
+
+  • Inadequate interview preparation: Aspiring developers lack structured,
+    realistic interview practice with immediate AI feedback, often relying
+    on expensive coaching or scattered free resources.
+
+
+2. PROPOSED SOLUTION – EDUMENTOR
+─────────────────────────────────────────────────────────────────────────────────
+
+EduMentor is an AI-powered web platform built around a core capability:
+DYNAMIC COURSE GENERATION. Using Large Language Models (LLMs), the system
+generates complete, structured, week-by-week courses tailored to any
+skill, proficiency level, and desired duration — in seconds.
+
+Beyond course generation, EduMentor integrates four complementary modules
+to create a unified learning ecosystem:
+
+  ┌───────────────────────────────────────────────────────────────────────┐
+  │                         EDUMENTOR ECOSYSTEM                         │
+  │                                                                     │
+  │   🗺️  AI COURSE GENERATION   →  Personalized week-by-week courses  │
+  │       (Core Feature)             with topics, resources, projects   │
+  │                                                                     │
+  │   💻  Smart Coding IDE       →  Practice with AI-generated problems │
+  │   📝  Adaptive Quizzes       →  MCQ tests with instant grading     │
+  │   🎯  Interview Prep         →  Mock interviews with AI evaluation │
+  │   📈  Progress Dashboard     →  Unified analytics & insights       │
+  │                                                                     │
+  └───────────────────────────────────────────────────────────────────────┘
+
+The central idea is that AI eliminates the need for pre-authored static
+content. Every course, problem, quiz, and interview question is generated
+dynamically and tailored to the individual user.
+
+
+3. CORE FEATURE: AI COURSE GENERATION
+─────────────────────────────────────────────────────────────────────────────────
+
+The AI Course Generator is the PRIMARY FEATURE of EduMentor. Here is how
+it works:
+
+  Input from User:
+    • Skill to learn (e.g., Python, JavaScript, React, Machine Learning,
+      Data Science, DevOps, SQL, etc.)
+    • Proficiency level (Beginner / Intermediate / Advanced)
+    • Course duration (in weeks — customizable)
+
+  AI Output — A complete structured course containing:
+    • Course title and high-level overview
+    • Week-by-week breakdown, where each week includes:
+      – Week title and focus area
+      – Topics to cover
+      – Recommended learning resources
+      – A hands-on project assignment
+      – Weekly learning goals
+
+  Why This Matters:
+    • Traditional platforms require educators to manually author courses
+      over weeks or months. EduMentor generates one in seconds.
+    • Every generated course is unique and personalized — two users with
+      different levels will get different courses for the same skill.
+    • Users can generate courses on ANY topic, including niche areas
+      that no existing platform covers.
+    • Courses can be saved, revisited, and deleted at any time.
+
+
+4. SUPPORTING FEATURES
+─────────────────────────────────────────────────────────────────────────────────
+
+4.1  Integrated Coding IDE
+     • AI-generated coding problems based on the user's skill and level.
+     • Built-in code editor supporting 8 languages: Python, JavaScript,
+       Java, C++, C, Go, Rust, and TypeScript.
+     • Code execution via Piston API (free), with fallback to Judge0 or
+       AI-simulated execution.
+     • AI-powered solution evaluation providing correctness, score,
+       feedback, time/space complexity, and improvement suggestions.
+
+4.2  Adaptive Quiz Engine
+     • AI-generated multiple-choice quizzes customized by skill, level,
+       and optional topic focus.
+     • Configurable question count (up to 20 per quiz).
+     • Instant grading with detailed explanations for each question.
+     • Quiz history with score tracking and performance trends.
+
+4.3  AI Interview Preparation
+     • Generates realistic technical, behavioral, and system design
+       interview questions tailored to the user's background.
+     • Model answers with key points and follow-up questions provided.
+     • Users submit their own answers and receive AI evaluation with
+       score, grade, strengths, and improvement suggestions.
+
+4.4  Unified Progress Dashboard
+     • Aggregated statistics across all modules.
+     • Weekly quiz score trends over the last 8 weeks.
+     • Activity breakdown by module with visual representation.
+
+
+5. OBJECTIVES
+─────────────────────────────────────────────────────────────────────────────────
+
+  • To build an AI-powered course generation system that creates
+    personalized, structured courses for any technical skill in seconds.
+  • To provide an integrated environment where learners can study, code,
+    test, and prepare for interviews — all from a single platform.
+  • To leverage free and open-source AI services (Groq LLM, Piston API)
+    to make the platform cost-effective and widely accessible.
+  • To track and visualize learner progress to encourage consistency and
+    self-improvement.
+  • To demonstrate the practical application of Large Language Models
+    in the education technology domain.
+
+
+6. TARGET AUDIENCE
+─────────────────────────────────────────────────────────────────────────────────
+
+  • College students learning programming for the first time.
+  • Self-taught developers looking for structured, personalized courses.
+  • Job seekers preparing for technical coding interviews.
+  • Working professionals upskilling in new technologies.
+  • Educators looking for AI-assisted course creation and assessment tools.
+
+
+7. INNOVATION & UNIQUENESS
+─────────────────────────────────────────────────────────────────────────────────
+
+  • AI-Generated Courses on Demand: The platform generates complete,
+    structured courses in real time — no pre-authored content needed.
+    This is the key differentiator from all existing platforms.
+
+  • Infinite Course Variety: Since courses are generated by AI, the
+    platform supports ANY skill and ANY difficulty level without manual
+    content creation.
+
+  • Unified Learning Ecosystem: Unlike competing platforms that specialize
+    in one area (e.g., LeetCode for coding, Coursera for courses),
+    EduMentor combines courses, coding, quizzes, and interviews.
+
+  • Multi-Engine Code Execution: A cascading strategy (Piston → Judge0 →
+    AI Simulation) ensures code can always be run, regardless of API
+    availability.
+
+  • Cost-Effective AI: Uses the free Groq API with Llama 3.3 70B, one
+    of the most capable open-source LLMs, making the platform viable
+    without expensive commercial API costs.
+
+
+8. SCOPE & FUTURE ENHANCEMENTS
+─────────────────────────────────────────────────────────────────────────────────
+
+  Current Scope:
+  • User authentication (registration, login, logout).
+  • AI Course Generation (primary feature) with save/load/delete.
+  • Coding IDE with AI problems and multi-engine execution.
+  • Quiz engine with AI-generated MCQs and auto-grading.
+  • Interview prep with AI evaluation.
+  • Progress tracking with aggregated analytics.
+  • Responsive dark-theme UI with modern design.
+
+  Future Enhancements:
+  • Course progress tracking (mark weeks/topics as completed).
+  • Collaborative learning with study groups and peer coding.
+  • Gamification with badges, streaks, and leaderboards.
+  • Video-based explanations integrated into generated courses.
+  • Integration with GitHub for project-based learning.
+  • Mobile application (React Native / Flutter).
+  • Multi-language UI support (Hindi, Spanish, etc.).
+  • Course export as PDF for offline study.
+
+================================================================================

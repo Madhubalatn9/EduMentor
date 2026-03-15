@@ -1,0 +1,577 @@
+================================================================================
+              EDUMENTOR – SYSTEM DESIGN & WORKING (sys.txt)
+               AI-Powered Course Generation & Learning Platform
+================================================================================
+
+1. SYSTEM OVERVIEW
+─────────────────────────────────────────────────────────────────────────────────
+
+EduMentor is an AI-powered web application whose central feature is
+DYNAMIC COURSE GENERATION. Using Large Language Models (Groq – Llama 3.3
+70B), the system generates complete, structured courses tailored to each
+learner's chosen skill, proficiency level, and desired duration. Beyond
+course generation, the platform provides integrated coding practice,
+quizzes, interview preparation, and progress tracking — all within a
+single unified environment.
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                    SYSTEM ARCHITECTURE OVERVIEW                    │
+  │                                                                    │
+  │   USER (Browser)                                                   │
+  │     │                                                              │
+  │     ▼                                                              │
+  │   FLASK WEB SERVER  (app.py – Application Factory)                 │
+  │     │                                                              │
+  │     ├─► AUTH MODULE      → Login / Register / Session Management   │
+  │     ├─► COURSE GENERATOR → AI-Powered Course/Roadmap Creation      │
+  │     ├─► CODING IDE       → Problem Generation + Code Execution     │
+  │     ├─► QUIZ ENGINE      → AI Quiz Generation + Auto-Grading       │
+  │     ├─► INTERVIEW PREP   → AI Q&A Generation + Answer Evaluation   │
+  │     └─► PROGRESS TRACKER → Analytics & Visualization               │
+  │           │                                                        │
+  │           ▼                                                        │
+  │     ┌───────────┐    ┌──────────┐    ┌────────────┐                │
+  │     │  SQLite   │    │ Groq API │    │ Piston API │                │
+  │     │  Database │    │  (LLM)   │    │  (Code)    │                │
+  │     └───────────┘    └──────────┘    └────────────┘                │
+  └─────────────────────────────────────────────────────────────────────┘
+
+
+2. APPLICATION STARTUP & FACTORY PATTERN
+─────────────────────────────────────────────────────────────────────────────────
+
+EduMentor uses Flask's Application Factory pattern (create_app function)
+to initialize the application. This ensures clean separation of concerns
+and testability.
+
+Startup Flow:
+  1. create_app() is called in app.py.
+  2. Configuration is loaded from Config class (config.py), which reads
+     environment variables from the .env file.
+  3. Extensions are initialized:
+       • SQLAlchemy (database ORM)
+       • Bcrypt (password hashing)
+       • LoginManager (session management)
+  4. Seven Blueprints are registered for modular routing:
+       auth_bp, main_bp, roadmap_bp, ide_bp, quiz_bp,
+       interview_bp, progress_bp
+  5. Database tables are created (db.create_all()) within app context.
+  6. The app starts on host 0.0.0.0, port 5000 in debug mode.
+
+
+3. USER AUTHENTICATION SYSTEM
+─────────────────────────────────────────────────────────────────────────────────
+
+Module: routes/auth.py
+Templates: index.html (login + register forms)
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                   AUTHENTICATION FLOW                           │
+  │                                                                  │
+  │   NEW USER:                                                      │
+  │   Landing Page → Register Form → Validate → Hash Password →     │
+  │   Create User in DB → Auto-Login → Redirect to Dashboard        │
+  │                                                                  │
+  │   RETURNING USER:                                                │
+  │   Landing Page → Login Form → Validate Credentials →             │
+  │   Bcrypt Password Check → Create Session → Redirect to Dashboard │
+  │                                                                  │
+  │   PROTECTED ROUTES:                                              │
+  │   Any @login_required route → Check session cookie →             │
+  │   If valid: allow access | If invalid: redirect to /login        │
+  └──────────────────────────────────────────────────────────────────┘
+
+Registration Data Collected:
+  • Username (unique)
+  • Email (unique)
+  • Password (bcrypt-hashed before storage)
+  • Primary Skill (Python, JavaScript, Java, C++, Data Science,
+    Machine Learning, Web Development, DevOps, React, SQL)
+  • Proficiency Level (Beginner / Intermediate / Advanced)
+
+Security Measures:
+  • Passwords hashed with bcrypt (salt + hash, never stored plaintext).
+  • Session managed via Flask-Login with "Remember Me" support.
+  • CSRF protection through Flask's built-in mechanisms.
+  • Duplicate username/email checks before registration.
+
+
+4. COURSE GENERATION SYSTEM (Primary Feature)
+─────────────────────────────────────────────────────────────────────────────────
+
+Module: routes/roadmap.py
+Template: roadmap.html
+Database Model: Roadmap
+
+This is the CORE FEATURE of EduMentor — the AI-powered course generator
+that creates personalized, structured learning courses in real time.
+
+4.1  How Course Generation Works
+     ─────────────────────────────────────────────────────────────────
+
+  Step 1: User Input
+    The user provides three parameters:
+      • Skill to learn (e.g., "Python", "Machine Learning", "React")
+      • Current level (Beginner / Intermediate / Advanced)
+      • Course duration (number of weeks, default: 8)
+
+  Step 2: AI Prompt Construction
+    The system constructs a detailed prompt for the LLM:
+      "Create a {duration}-week learning roadmap for {skill} at
+       {level} level."
+    The prompt specifies the exact JSON structure expected in return.
+
+  Step 3: LLM Processing (Groq API)
+    The prompt is sent to the Groq API which runs the Llama 3.3 70B
+    model. The LLM generates a complete, structured course plan.
+
+  Step 4: Response Parsing
+    The JSON response is cleaned (markdown code fences stripped if
+    present) and parsed into a structured Python dictionary.
+
+  Step 5: Delivery to Frontend
+    The parsed course data is returned as JSON to the frontend,
+    which dynamically renders the course using JavaScript.
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │              COURSE GENERATION DATA FLOW                        │
+  │                                                                  │
+  │   User selects      Prompt built     Sent to      AI generates  │
+  │   Skill + Level  →  with JSON     →  Groq API  →  structured   │
+  │   + Duration        structure                      course JSON   │
+  │                                                                  │
+  │   JSON parsed    →  Rendered in   →  User can   → Saved to DB   │
+  │   by backend        browser UI       save it      for later use │
+  └──────────────────────────────────────────────────────────────────┘
+
+4.2  Generated Course Structure (JSON)
+     ─────────────────────────────────────────────────────────────────
+
+  {
+    "title": "Complete Python Programming Course",
+    "skill": "Python",
+    "level": "Beginner",
+    "total_weeks": 8,
+    "overview": "A comprehensive 8-week course...",
+    "weeks": [
+      {
+        "week": 1,
+        "title": "Introduction to Python",
+        "focus": "Setting up environment and basics",
+        "topics": [
+          "Installing Python",
+          "Variables and Data Types",
+          "Basic Input/Output"
+        ],
+        "resources": [
+          "Python Official Tutorial",
+          "Real Python Beginner's Guide"
+        ],
+        "project": "Build a simple calculator",
+        "goals": [
+          "Understand Python syntax",
+          "Write basic programs"
+        ]
+      },
+      ... (repeated for each week)
+    ]
+  }
+
+  Each week of the generated course includes:
+    • Week number and title
+    • Focus area for the week
+    • List of topics to study
+    • Recommended learning resources
+    • A hands-on project assignment
+    • Learning goals / outcomes
+
+4.3  Course Persistence (CRUD Operations)
+     ─────────────────────────────────────────────────────────────────
+
+  • SAVE: POST /api/roadmap/save
+    → Stores the generated course JSON in the Roadmap table.
+    → Associated with the current user via user_id foreign key.
+
+  • LIST: GET /roadmap
+    → Retrieves all saved courses for the current user.
+    → Displayed in the sidebar panel for quick access.
+
+  • VIEW: GET /api/roadmap/<id>
+    → Fetches a specific saved course by ID.
+    → Only accessible by the course owner (user_id check).
+
+  • DELETE: DELETE /api/roadmap/<id>
+    → Removes a saved course from the database.
+    → Only the course owner can delete it.
+
+
+5. CODING IDE SYSTEM
+─────────────────────────────────────────────────────────────────────────────────
+
+Module: routes/ide.py
+Template: ide.html
+Database Model: CodingSession
+
+5.1  Problem Generation
+     ─────────────────────────────────────────────────────────────────
+  • AI generates coding problems based on the user's skill and level.
+  • Users can optionally specify a topic for focused practice.
+  • Generated problem includes: title, difficulty, description,
+    examples, constraints, hints, and starter code (for Python,
+    JavaScript, and Java).
+
+5.2  Code Execution (Multi-Engine Cascade)
+     ─────────────────────────────────────────────────────────────────
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │   Code Execution Cascade Strategy                               │
+  │                                                                  │
+  │   1. TRY Piston API (Free, no key)                               │
+  │      ├─ Success → Return output/error                            │
+  │      └─ Failure → Fall through                                   │
+  │                                                                  │
+  │   2. TRY Judge0 via RapidAPI (If API key configured)             │
+  │      ├─ Success → Return decoded output/error                    │
+  │      └─ Failure → Fall through                                   │
+  │                                                                  │
+  │   3. TRY AI-Simulated Execution (Groq LLM)                      │
+  │      ├─ LLM "mentally executes" the code                         │
+  │      └─ Returns expected output (marked as "AI Simulated")       │
+  └──────────────────────────────────────────────────────────────────┘
+
+  Supported Languages (8):
+    Python, JavaScript, Java, C++, C, Go, Rust, TypeScript
+
+5.3  Solution Evaluation
+     ─────────────────────────────────────────────────────────────────
+  • The AI evaluates the user's code against the problem requirements.
+  • Returns: score (0-100), correctness, feedback, improvement
+    suggestions, time complexity, and space complexity.
+  • The session is saved to CodingSession table with result
+    ("passed" or "failed").
+
+
+6. QUIZ ENGINE
+─────────────────────────────────────────────────────────────────────────────────
+
+Module: routes/quiz.py
+Template: quiz.html
+Database Model: Quiz
+
+6.1  Quiz Generation Flow
+     ─────────────────────────────────────────────────────────────────
+
+  User Input:
+    • Skill (default: user's primary skill)
+    • Level (default: user's proficiency level)
+    • Topic (optional — for focused quizzes)
+    • Number of questions (1–20, default: 10)
+
+  AI generates an array of MCQ objects:
+    [{
+      "id": 1,
+      "question": "What is the output of print(2 ** 3)?",
+      "options": ["A) 6", "B) 8", "C) 9", "D) 5"],
+      "correct_answer": "B",
+      "explanation": "** is the exponentiation operator..."
+    }, ...]
+
+  The quiz is saved to the database upon generation (before the
+  user answers), enabling the quiz-submit flow with a quiz_id.
+
+6.2  Quiz Submission & Grading
+     ─────────────────────────────────────────────────────────────────
+
+  Grading Algorithm:
+    1. Retrieve the quiz from DB by quiz_id.
+    2. Parse the stored questions JSON.
+    3. For each question:
+       a. Get user's answer for that question ID.
+       b. Compare with correct_answer (case-insensitive prefix match).
+       c. Mark as correct or incorrect.
+    4. Calculate total score and percentage.
+    5. Update quiz record with user_answers and score.
+    6. Return detailed results with explanations.
+
+
+7. INTERVIEW PREPARATION SYSTEM
+─────────────────────────────────────────────────────────────────────────────────
+
+Module: routes/interview.py
+Template: interview.html
+Database Model: InterviewSession
+
+7.1  Question Generation
+     ─────────────────────────────────────────────────────────────────
+  • User specifies: skill, level, interview type (Technical /
+    Behavioral / System Design), and number of questions (up to 15).
+  • AI generates structured interview questions with:
+    - Question text
+    - Type and difficulty
+    - Comprehensive model answer
+    - Key points to cover
+    - Follow-up question
+
+7.2  Answer Evaluation
+     ─────────────────────────────────────────────────────────────────
+  • User writes their answer in a text area.
+  • The AI compares the user's answer against the model answer.
+  • Evaluation includes:
+    - Score (0–10)
+    - Grade (Excellent / Good / Fair / Poor)
+    - Feedback summary
+    - List of strengths
+    - List of areas for improvement
+
+
+8. PROGRESS TRACKING SYSTEM
+─────────────────────────────────────────────────────────────────────────────────
+
+Module: routes/progress.py
+Template: progress.html
+
+8.1  Aggregated Statistics
+     ─────────────────────────────────────────────────────────────────
+  The progress API (/api/progress/stats) computes:
+    • Total roadmaps/courses generated
+    • Total coding sessions completed
+    • Coding problems passed
+    • Total quizzes taken
+    • Total interview sessions
+    • Average quiz score (percentage)
+
+8.2  Weekly Trend Analysis
+     ─────────────────────────────────────────────────────────────────
+  • Calculates average quiz score for each of the last 8 weeks.
+  • Generates weekly labels (e.g., "Week 03/01") for chart display.
+
+8.3  Activity Breakdown
+     ─────────────────────────────────────────────────────────────────
+  • Provides a breakdown of all activities by module:
+    Roadmaps (Indigo), Coding Sessions (Violet),
+    Quizzes (Cyan), Interviews (Green).
+
+
+9. DATABASE SCHEMA
+─────────────────────────────────────────────────────────────────────────────────
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  TABLE: users                                                   │
+  ├──────────────┬──────────────┬───────────────────────────────────┤
+  │  Column      │  Type        │  Description                      │
+  ├──────────────┼──────────────┼───────────────────────────────────┤
+  │  id          │  INTEGER PK  │  Auto-increment primary key       │
+  │  username    │  VARCHAR(80) │  Unique username                  │
+  │  email       │  VARCHAR(120)│  Unique email address             │
+  │  password_hash│ VARCHAR(256)│  Bcrypt-hashed password           │
+  │  skill       │  VARCHAR(100)│  Primary learning skill           │
+  │  level       │  VARCHAR(50) │  Beginner / Intermediate / Advanced│
+  │  created_at  │  DATETIME    │  Account creation timestamp       │
+  └──────────────┴──────────────┴───────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  TABLE: roadmaps (Generated Courses)                            │
+  ├──────────────┬──────────────┬───────────────────────────────────┤
+  │  id          │  INTEGER PK  │  Auto-increment primary key       │
+  │  user_id     │  INTEGER FK  │  References users.id              │
+  │  skill       │  VARCHAR(100)│  Course skill (e.g., "Python")    │
+  │  level       │  VARCHAR(50) │  Course level                     │
+  │  content     │  TEXT         │  Full course JSON (stringified)   │
+  │  created_at  │  DATETIME    │  Generation timestamp             │
+  └──────────────┴──────────────┴───────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  TABLE: coding_sessions                                         │
+  ├──────────────────┬──────────────┬───────────────────────────────┤
+  │  id              │  INTEGER PK  │  Auto-increment primary key   │
+  │  user_id         │  INTEGER FK  │  References users.id          │
+  │  problem_title   │  VARCHAR(200)│  Problem name                 │
+  │  problem_content │  TEXT         │  Full problem description     │
+  │  user_code       │  TEXT         │  User's submitted code        │
+  │  language        │  VARCHAR(50) │  Programming language used     │
+  │  result          │  VARCHAR(50) │  "passed" or "failed"         │
+  │  ai_feedback     │  TEXT         │  AI evaluation feedback       │
+  │  created_at      │  DATETIME    │  Session timestamp            │
+  └──────────────────┴──────────────┴───────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  TABLE: quizzes                                                 │
+  ├──────────────┬──────────────┬───────────────────────────────────┤
+  │  id          │  INTEGER PK  │  Auto-increment primary key       │
+  │  user_id     │  INTEGER FK  │  References users.id              │
+  │  skill       │  VARCHAR(100)│  Quiz topic/skill                 │
+  │  level       │  VARCHAR(50) │  Difficulty level                 │
+  │  questions   │  TEXT         │  JSON array of questions          │
+  │  user_answers│  TEXT         │  JSON of user's answers           │
+  │  score       │  INTEGER      │  Number of correct answers        │
+  │  total       │  INTEGER      │  Total number of questions        │
+  │  created_at  │  DATETIME    │  Quiz timestamp                   │
+  └──────────────┴──────────────┴───────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  TABLE: interview_sessions                                      │
+  ├──────────────┬──────────────┬───────────────────────────────────┤
+  │  id          │  INTEGER PK  │  Auto-increment primary key       │
+  │  user_id     │  INTEGER FK  │  References users.id              │
+  │  skill       │  VARCHAR(100)│  Interview subject                │
+  │  level       │  VARCHAR(50) │  Difficulty level                 │
+  │  questions   │  TEXT         │  JSON array of Q&A               │
+  │  created_at  │  DATETIME    │  Session timestamp                │
+  └──────────────┴──────────────┴───────────────────────────────────┘
+
+  Relationships:
+    User  ──1:N──►  Roadmap
+    User  ──1:N──►  CodingSession
+    User  ──1:N──►  Quiz
+    User  ──1:N──►  InterviewSession
+    (All with CASCADE delete)
+
+
+10. REQUEST–RESPONSE LIFECYCLE
+─────────────────────────────────────────────────────────────────────────────────
+
+  Example: Generating a Course (the primary feature)
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                                                                  │
+  │  1. USER clicks "Generate Course" on /roadmap page               │
+  │     │                                                            │
+  │  2. Browser sends POST /api/roadmap/generate                     │
+  │     Body: {"skill": "Python", "level": "Beginner",              │
+  │            "duration": 8}                                        │
+  │     │                                                            │
+  │  3. FLASK route handler (roadmap_bp) receives request            │
+  │     │                                                            │
+  │  4. Handler constructs a detailed PROMPT with JSON schema        │
+  │     │                                                            │
+  │  5. GROQ API call via client.chat.completions.create()           │
+  │     Model: llama-3.3-70b-versatile                               │
+  │     Temperature: 0.7, Max tokens: 3000                           │
+  │     │                                                            │
+  │  6. LLM generates structured course as JSON string               │
+  │     │                                                            │
+  │  7. Response is cleaned (_clean_json removes code fences)        │
+  │     │                                                            │
+  │  8. JSON is parsed (json.loads) into Python dict                 │
+  │     │                                                            │
+  │  9. Dict returned as JSON response to browser                    │
+  │     │                                                            │
+  │  10. JAVASCRIPT dynamically renders the course:                  │
+  │      Title, overview, and weekly breakdown with topics,          │
+  │      resources, projects, and learning goals.                    │
+  │     │                                                            │
+  │  11. USER can SAVE the course → POST /api/roadmap/save           │
+  │      → Stored in SQLite (roadmaps table) for future access.      │
+  │                                                                  │
+  └──────────────────────────────────────────────────────────────────┘
+
+
+11. SECURITY CONSIDERATIONS
+─────────────────────────────────────────────────────────────────────────────────
+
+  • Password Hashing: All passwords hashed with bcrypt before storage.
+  • Session Security: Flask-Login manages sessions with secure cookies.
+  • API Key Protection: Sensitive keys stored in .env file, never
+    hardcoded in source code.
+  • Route Protection: All data routes use @login_required decorator.
+  • User Data Isolation: All database queries filter by user_id,
+    ensuring users can only access their own data.
+  • Input Validation: User inputs are validated/sanitized before
+    processing (empty checks, type constraints, length limits).
+
+
+12. ERROR HANDLING STRATEGY
+─────────────────────────────────────────────────────────────────────────────────
+
+  The application handles errors at multiple levels:
+
+  AI Response Parsing:
+    • JSON responses are cleaned of markdown code fences.
+    • json.JSONDecodeError caught specifically for parse failures.
+    • Generic Exception caught for API connection or other issues.
+
+  Code Execution:
+    • Each execution engine is wrapped in try/except blocks.
+    • If one engine fails, the system silently falls through to the next.
+    • The final fallback (AI simulation) provides a guaranteed response.
+
+  User-Facing Errors:
+    • Flash messages shown for authentication errors.
+    • Toast notifications for API errors on interactive pages.
+    • Appropriate HTTP status codes (400, 404, 500) returned.
+
+
+13. FRONTEND RENDERING SYSTEM
+─────────────────────────────────────────────────────────────────────────────────
+
+  Template Inheritance:
+    base.html serves as the master template with:
+      • Sidebar navigation (visible when logged in)
+      • Top bar with page title and user avatar
+      • Flash message container
+      • Content area ({% block content %})
+      • Public content area for unauthenticated users
+
+  Dynamic Rendering:
+    • Course data rendered via JavaScript DOM manipulation.
+    • Quiz questions rendered one-at-a-time with navigation.
+    • Interview questions displayed with answer input fields.
+    • Progress charts rendered dynamically from API data.
+
+  Responsive Design:
+    • Three breakpoints: Desktop (>1024px), Tablet (768–1024px),
+      Mobile (<768px).
+    • Collapsible sidebar on mobile with hamburger menu.
+    • Grid layouts adapt from multi-column to single-column.
+
+
+14. SYSTEM FLOW DIAGRAMS
+─────────────────────────────────────────────────────────────────────────────────
+
+  Overall Application Flow:
+  ─────────────────────────────────────────────────────────────────
+
+    User opens app → Landing Page
+      │
+      ├─ Not logged in → Show Login/Register
+      │   ├─ Register → Create account → Auto-login → Dashboard
+      │   └─ Login → Verify credentials → Dashboard
+      │
+      └─ Logged in → Redirect to Dashboard
+          │
+          ├─ Dashboard: View stats, quick actions, recent quizzes
+          │
+          ├─ Course Generator: Input skill/level → AI generates
+          │   course → View/Save/Delete courses
+          │
+          ├─ Coding IDE: Generate problems → Write code → Execute
+          │   → Get AI evaluation → Track session
+          │
+          ├─ Quiz: Generate MCQs → Answer questions → Submit →
+          │   View score & explanations → Track history
+          │
+          ├─ Interview Prep: Generate Q&A → Write answers →
+          │   Get AI evaluation with score/feedback
+          │
+          └─ Progress: View aggregated stats, weekly trends,
+             activity breakdown charts
+
+
+15. SUMMARY
+─────────────────────────────────────────────────────────────────────────────────
+
+EduMentor is designed as a comprehensive, AI-first learning platform where
+COURSE GENERATION is the foundation upon which all other features build.
+The AI generates personalized courses, and the integrated IDE, quiz engine,
+and interview prep modules provide the practice and assessment needed to
+actually master the generated curriculum.
+
+Key Design Principles:
+  • AI-First: Every content generation feature is powered by LLMs.
+  • Modular: Flask Blueprints keep each feature cleanly separated.
+  • Resilient: Multi-engine code execution with graceful fallbacks.
+  • Secure: Bcrypt hashing, session management, user data isolation.
+  • Responsive: Adapts to desktop, tablet, and mobile screens.
+  • Cost-Effective: Uses free-tier APIs (Groq, Piston) wherever possible.
+
+================================================================================

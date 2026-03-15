@@ -1,0 +1,341 @@
+================================================================================
+                     EDUMENTOR – TECHNOLOGY STACK (tech.txt)
+              AI-Powered Course Generation & Learning Platform
+================================================================================
+
+1. TECHNOLOGY STACK OVERVIEW
+─────────────────────────────────────────────────────────────────────────────────
+
+  ┌─────────────────────┬──────────────────────────────────────────────────┐
+  │  Layer              │  Technologies Used                              │
+  ├─────────────────────┼──────────────────────────────────────────────────┤
+  │  Backend Framework  │  Python 3.x, Flask 3.0.0                        │
+  │  Database           │  SQLite (via SQLAlchemy ORM)                     │
+  │  ORM                │  Flask-SQLAlchemy 3.1.1                          │
+  │  Authentication     │  Flask-Login 0.6.3, Flask-Bcrypt 1.0.1           │
+  │  AI / LLM           │  Groq API (Llama 3.3 70B Versatile model)       │
+  │  Code Execution     │  Piston API (primary), Judge0 via RapidAPI      │
+  │  Frontend           │  HTML5, CSS3 (custom design system), JavaScript  │
+  │  Typography         │  Google Fonts – Inter, JetBrains Mono            │
+  │  HTTP Client        │  Python Requests 2.31.0                          │
+  │  Environment Vars   │  python-dotenv 1.0.1                             │
+  │  WSGI Server        │  Werkzeug 3.0.1 (Flask built-in dev server)      │
+  │  Templating         │  Jinja2 (bundled with Flask)                     │
+  └─────────────────────┴──────────────────────────────────────────────────┘
+
+
+2. BACKEND TECHNOLOGIES (Detailed)
+─────────────────────────────────────────────────────────────────────────────────
+
+2.1  Python 3.x
+     ─────────────────────────────────────────────────────────────────────
+     Python serves as the core programming language for the entire backend.
+     It was chosen for its extensive ecosystem, readability, and strong
+     support for web development and AI integration.
+
+2.2  Flask 3.0.0 (Micro Web Framework)
+     ─────────────────────────────────────────────────────────────────────
+     Flask is a lightweight Python web framework based on WSGI. Unlike
+     full-stack frameworks like Django, Flask provides flexibility to choose
+     individual components. Key reasons for selection:
+       • Lightweight and minimalistic — no unnecessary bloat.
+       • Modular architecture via Blueprints for organizing routes.
+       • Rich extension ecosystem (SQLAlchemy, Login, Bcrypt, etc.).
+       • Excellent for rapid prototyping and small-to-medium projects.
+
+     Blueprints used in EduMentor:
+       ├── auth_bp       → Authentication (login, register, logout)
+       ├── main_bp       → Dashboard and root routing
+       ├── roadmap_bp    → AI roadmap generation, saving, retrieval
+       ├── ide_bp        → Coding IDE, code execution, evaluation
+       ├── quiz_bp       → Quiz generation, submission, scoring
+       ├── interview_bp  → Interview question generation, evaluation
+       └── progress_bp   → Analytics and progress tracking
+
+2.3  Flask-SQLAlchemy 3.1.1 (ORM)
+     ─────────────────────────────────────────────────────────────────────
+     SQLAlchemy provides an Object-Relational Mapping (ORM) layer,
+     allowing Python classes to map directly to database tables without
+     writing raw SQL. This simplifies database interactions and makes the
+     code more maintainable.
+
+     Database Models defined:
+       • User             – Stores user accounts with hashed passwords.
+       • Roadmap          – Stores generated learning roadmaps.
+       • CodingSession    – Tracks coding problems, user code, and results.
+       • Quiz             – Stores quiz questions, answers, and scores.
+       • InterviewSession – Stores interview questions and sessions.
+
+2.4  SQLite (Database)
+     ─────────────────────────────────────────────────────────────────────
+     SQLite is a self-contained, serverless, zero-configuration SQL database
+     engine. It stores the entire database in a single file (edumentor.db).
+       • No separate database server installation needed.
+       • Ideal for development, prototyping, and single-user deployments.
+       • Can be replaced with PostgreSQL or MySQL for production scaling.
+
+2.5  Flask-Login 0.6.3 (Session Management)
+     ─────────────────────────────────────────────────────────────────────
+     Handles user session management including:
+       • User login/logout with session cookies.
+       • "Remember Me" functionality.
+       • Route protection via @login_required decorator.
+       • User loader callback for session restoration.
+
+2.6  Flask-Bcrypt 1.0.1 (Password Hashing)
+     ─────────────────────────────────────────────────────────────────────
+     Provides bcrypt hashing for secure password storage. Passwords are
+     never stored in plaintext; they are hashed with a salt, making them
+     resistant to dictionary attacks and rainbow table attacks.
+
+2.7  Werkzeug 3.0.1 (WSGI Toolkit)
+     ─────────────────────────────────────────────────────────────────────
+     Flask's underlying WSGI toolkit providing:
+       • Development server with auto-reload.
+       • Request/response handling.
+       • URL routing.
+       • Debugging tools.
+
+2.8  python-dotenv 1.0.1 (Environment Configuration)
+     ─────────────────────────────────────────────────────────────────────
+     Loads environment variables from a .env file into the application
+     configuration. This keeps sensitive data (API keys, secrets) out of
+     the source code.
+
+     Environment variables used:
+       • SECRET_KEY      → Flask session encryption key.
+       • GROQ_API_KEY    → API key for the Groq LLM service.
+       • JUDGE0_API_KEY  → Optional API key for Judge0 code execution.
+       • DATABASE_URL    → Database connection URI.
+
+2.9  Requests 2.31.0 (HTTP Client)
+     ─────────────────────────────────────────────────────────────────────
+     A simple and elegant HTTP library for Python, used to:
+       • Send code to the Piston API for execution.
+       • Communicate with the Judge0 API on RapidAPI.
+
+
+3. AI / LLM INTEGRATION
+─────────────────────────────────────────────────────────────────────────────────
+
+3.1  Groq API with Llama 3.3 70B Versatile
+     ─────────────────────────────────────────────────────────────────────
+     Groq provides ultra-fast inference for Large Language Models using
+     their custom LPU (Language Processing Unit) hardware. EduMentor uses
+     the Groq Python SDK (groq==0.11.0) to interact with the API.
+
+     Model: llama-3.3-70b-versatile
+       • One of the most capable open-source LLMs available.
+       • 70 billion parameters for nuanced, high-quality responses.
+       • Free tier available — making it cost-effective for development.
+
+     AI is used for:
+       ┌─────────────────────────┬────────────────────────────────────────┐
+       │  Feature                │  AI Role                               │
+       ├─────────────────────────┼────────────────────────────────────────┤
+       │  Roadmap Generation     │  Creates structured learning plans     │
+       │  Problem Generation     │  Generates coding challenges           │
+       │  Code Evaluation        │  Reviews code for correctness/quality  │
+       │  AI Code Execution      │  Simulates code output (fallback)      │
+       │  Quiz Generation        │  Creates MCQ questions with answers    │
+       │  Interview Questions    │  Generates interview Q&A               │
+       │  Answer Evaluation      │  Scores and critiques user answers     │
+       └─────────────────────────┴────────────────────────────────────────┘
+
+     All AI responses are requested in structured JSON format for reliable
+     parsing and rendering in the frontend.
+
+3.2  Code Execution – Multi-Engine Strategy
+     ─────────────────────────────────────────────────────────────────────
+     EduMentor employs a cascading fallback strategy for code execution:
+
+     Priority 1: Piston API (https://emkc.org/api/v2/piston/execute)
+       • Completely free, no API key required.
+       • Supports Python, JavaScript, Java, C++, C, Go, Rust, TypeScript.
+       • Runs user code in a sandboxed environment.
+
+     Priority 2: Judge0 CE via RapidAPI
+       • Used if Piston is unavailable and a JUDGE0_API_KEY is configured.
+       • Provides base64-encoded input/output handling.
+       • Supports all major programming languages.
+
+     Priority 3: AI-Simulated Execution (Groq)
+       • As a last resort, the LLM "mentally executes" the code and
+         returns the expected output.
+       • Useful when both external APIs are unavailable.
+
+     Supported Languages:
+       Python, JavaScript, Java, C++, C, Go, Rust, TypeScript.
+
+
+4. FRONTEND TECHNOLOGIES
+─────────────────────────────────────────────────────────────────────────────────
+
+4.1  HTML5 + Jinja2 Templating
+     ─────────────────────────────────────────────────────────────────────
+     • Semantic HTML5 structure.
+     • Jinja2 template inheritance with a base layout (base.html).
+     • Template hierarchy:
+         base.html (master layout with sidebar + topbar)
+           ├── index.html      → Landing page / Auth forms
+           ├── dashboard.html  → User dashboard
+           ├── roadmap.html    → Roadmap generator
+           ├── ide.html        → Coding IDE
+           ├── quiz.html       → Quiz engine
+           ├── interview.html  → Interview prep
+           └── progress.html   → Progress analytics
+
+4.2  CSS3 – Custom Design System
+     ─────────────────────────────────────────────────────────────────────
+     A comprehensive custom CSS design system (main.css, ~454 lines) with:
+       • CSS custom properties (variables) for consistent theming.
+       • Dark theme with glassmorphism effects (backdrop-filter: blur).
+       • Animated floating orbs on the landing page.
+       • Responsive grid layouts with @media breakpoints.
+       • Component styles: cards, buttons, forms, badges, toasts, loaders.
+       • Smooth animations: fadeInUp, slideDown, spin, float.
+       • Custom scrollbar styling.
+
+     Color Palette:
+       ├── Primary:    #6366f1 (Indigo)
+       ├── Secondary:  #8b5cf6 (Violet)
+       ├── Cyan:       #0ea5e9
+       ├── Green:      #10b981
+       ├── Amber:      #f59e0b
+       ├── Red:        #ef4444
+       ├── Pink:       #ec4899
+       ├── Background: #050510 (Deep dark blue-black)
+       └── Surface:    rgba(255,255,255,0.04)
+
+4.3  JavaScript (Vanilla)
+     ─────────────────────────────────────────────────────────────────────
+     • Sidebar toggle for mobile responsiveness.
+     • Toast notification system.
+     • Tab switching for login/register forms.
+     • Code editor keyboard shortcuts (Tab key inserts spaces).
+     • Animated stat cards on page load.
+     • AJAX calls to backend APIs using fetch().
+     • No external JS frameworks or libraries required.
+
+4.4  Google Fonts
+     ─────────────────────────────────────────────────────────────────────
+     • Inter (weights: 300–800) → UI text, headings, labels.
+     • JetBrains Mono (weights: 400, 500) → Code editor and output.
+
+
+5. PROJECT ARCHITECTURE
+─────────────────────────────────────────────────────────────────────────────────
+
+  edumentor/
+  │
+  ├── app.py                 → Application factory (create_app)
+  ├── config.py              → Configuration class (.env loading)
+  ├── models.py              → SQLAlchemy database models
+  ├── requirements.txt       → Python dependencies
+  ├── .env                   → Environment variables (API keys)
+  │
+  ├── routes/                → Flask Blueprints (modular routes)
+  │   ├── __init__.py
+  │   ├── auth.py            → Login, Register, Logout
+  │   ├── main.py            → Dashboard, Index redirect
+  │   ├── roadmap.py         → Roadmap CRUD + AI generation
+  │   ├── ide.py             → Code execution + AI evaluation
+  │   ├── quiz.py            → Quiz generation + grading
+  │   ├── interview.py       → Interview Q&A + AI evaluation
+  │   └── progress.py        → Analytics API
+  │
+  ├── templates/             → Jinja2 HTML templates
+  │   ├── base.html          → Master layout (sidebar + topbar)
+  │   ├── index.html         → Landing page + auth forms
+  │   ├── dashboard.html     → User dashboard
+  │   ├── roadmap.html       → Roadmap generator UI
+  │   ├── ide.html           → Coding IDE UI
+  │   ├── quiz.html          → Quiz engine UI
+  │   ├── interview.html     → Interview prep UI
+  │   └── progress.html      → Progress analytics UI
+  │
+  ├── static/                → Static assets
+  │   ├── css/main.css       → Complete design system (~454 lines)
+  │   └── js/main.js         → Global JavaScript utilities
+  │
+  └── instance/
+      └── edumentor.db       → SQLite database file
+
+
+6. DEPENDENCIES (requirements.txt)
+─────────────────────────────────────────────────────────────────────────────────
+
+  ┌──────────────────────┬─────────┬──────────────────────────────────────┐
+  │  Package             │ Version │ Purpose                              │
+  ├──────────────────────┼─────────┼──────────────────────────────────────┤
+  │  flask               │ 3.0.0   │ Web framework                        │
+  │  flask-sqlalchemy    │ 3.1.1   │ ORM for database operations          │
+  │  flask-login         │ 0.6.3   │ User session management              │
+  │  flask-bcrypt        │ 1.0.1   │ Password hashing (bcrypt)            │
+  │  groq                │ 0.11.0  │ Groq LLM API client                  │
+  │  python-dotenv       │ 1.0.1   │ .env file loading                    │
+  │  requests            │ 2.31.0  │ HTTP requests to external APIs       │
+  │  Werkzeug            │ 3.0.1   │ WSGI utilities (dev server)          │
+  └──────────────────────┴─────────┴──────────────────────────────────────┘
+
+
+7. API ENDPOINTS SUMMARY
+─────────────────────────────────────────────────────────────────────────────────
+
+  Authentication:
+    POST /login              → User login
+    POST /register           → User registration
+    GET  /logout             → User logout
+
+  Dashboard:
+    GET  /                   → Redirect to dashboard or login
+    GET  /dashboard          → User dashboard with stats
+
+  Roadmap:
+    GET  /roadmap            → Roadmap page
+    POST /api/roadmap/generate  → AI generates a roadmap
+    POST /api/roadmap/save      → Save a roadmap to database
+    GET  /api/roadmap/<id>      → Retrieve a saved roadmap
+    DELETE /api/roadmap/<id>    → Delete a saved roadmap
+
+  Coding IDE:
+    GET  /ide                → IDE page
+    POST /api/ide/generate-problem → AI generates a coding problem
+    POST /api/ide/execute          → Execute user code
+    POST /api/ide/evaluate         → AI evaluates user solution
+
+  Quiz:
+    GET  /quiz               → Quiz page
+    POST /api/quiz/generate  → AI generates quiz questions
+    POST /api/quiz/submit    → Submit answers and get scores
+
+  Interview:
+    GET  /interview          → Interview prep page
+    POST /api/interview/generate        → AI generates interview questions
+    POST /api/interview/evaluate-answer → AI evaluates user answer
+
+  Progress:
+    GET  /progress           → Progress page
+    GET  /api/progress/stats → Get aggregated progress statistics
+
+
+8. DEPLOYMENT REQUIREMENTS
+─────────────────────────────────────────────────────────────────────────────────
+
+  Minimum Requirements:
+    • Python 3.8 or higher
+    • pip (Python package manager)
+    • Internet connection (for Groq API and Piston API)
+    • A valid Groq API key (free tier available at console.groq.com)
+
+  Setup Steps:
+    1. Clone or download the project.
+    2. Create a virtual environment:  python -m venv .venv
+    3. Activate:  .venv\Scripts\activate  (Windows)
+    4. Install dependencies:  pip install -r requirements.txt
+    5. Configure .env file with API keys.
+    6. Run:  python app.py
+    7. Open:  http://localhost:5000
+
+
+================================================================================
