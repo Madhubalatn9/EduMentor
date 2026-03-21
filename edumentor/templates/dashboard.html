@@ -97,7 +97,7 @@
                 <div class="quiz-score">
                     {% if q.score is not none %}
                     <div class="score-bar">
-                        <div class="score-fill" style="width:{{ (q.score/q.total*100)|int }}%">&nbsp;</div>
+                        <div class="score-fill" style="width:{% if q.total and q.total > 0 and q.score is not none %}{{ (q.score / q.total * 100)|int }}%{% else %}0%{% endif %}">&nbsp;</div>
                     </div>
                     <span class="score-text">{{ q.score }}/{{ q.total }}</span>
                     {% else %}

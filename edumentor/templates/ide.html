@@ -86,6 +86,7 @@
         </div>
 
         <div class="code-editor-wrap">
+            <div class="line-numbers" id="lineNumbers">1</div>
             <textarea id="codeEditor" class="code-editor" spellcheck="false"
                 placeholder="// Write your solution here…"></textarea>
         </div>
@@ -130,16 +131,32 @@
         cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n'
     };
 
-    document.getElementById('codeEditor').value = starterCode.python;
+    const editor = document.getElementById('codeEditor');
+    const lineNumbers = document.getElementById('lineNumbers');
+
+    editor.value = starterCode.python;
+    updateLineNumbers();
+
+    editor.addEventListener('input', updateLineNumbers);
+    editor.addEventListener('scroll', () => {
+        lineNumbers.scrollTop = editor.scrollTop;
+    });
+
+    function updateLineNumbers() {
+        const lines = editor.value.split('\n').length;
+        lineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+    }
 
     function changeLang() {
         const lang = document.getElementById('edLang').value;
         if (!currentProblem) {
-            document.getElementById('codeEditor').value = starterCode[lang] || '';
+            editor.value = starterCode[lang] || '';
+            updateLineNumbers();
             return;
         }
         const starter = (currentProblem.starter_code || {})[lang];
-        document.getElementById('codeEditor').value = starter || starterCode[lang] || '';
+        editor.value = starter || starterCode[lang] || '';
+        updateLineNumbers();
     }
 
     async function generateProblem() {
@@ -161,7 +178,8 @@
                 renderProblem(data.problem);
                 const lang = document.getElementById('edLang').value;
                 const starter = (data.problem.starter_code || {})[lang];
-                document.getElementById('codeEditor').value = starter || starterCode[lang] || '';
+                editor.value = starter || starterCode[lang] || '';
+                updateLineNumbers();
                 document.getElementById('evalPanel').classList.add('hidden');
             } else showToast(data.error || 'Failed', 'error');
         } catch (e) { showToast('Network error', 'error'); }
@@ -246,7 +264,8 @@
 
     function clearCode() {
         const lang = document.getElementById('edLang').value;
-        document.getElementById('codeEditor').value = starterCode[lang] || '';
+        editor.value = starterCode[lang] || '';
+        updateLineNumbers();
     }
 </script>
 {% endblock %}

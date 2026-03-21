@@ -1220,16 +1220,33 @@ select.form-input {
 }
 
 .code-editor-wrap {
+  display: flex;
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border);
+  background: #1e1e2e;
+}
+
+.line-numbers {
+  padding: 1.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: #5a5a75;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .875rem;
+  line-height: 1.7;
+  user-select: none;
+  min-width: 3.5rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  height: 340px; /* Match textarea min-height */
 }
 
 .code-editor {
-  width: 100%;
+  flex: 1;
   min-height: 340px;
   padding: 1.25rem;
-  background: #1e1e2e;
+  background: transparent;
   color: #e2e8f0;
   font-family: 'JetBrains Mono', monospace;
   font-size: .875rem;
@@ -1956,6 +1973,7 @@ select.form-input {
   font-size: .9rem;
   line-height: 1.8;
   margin-bottom: .75rem;
+  white-space: pre-wrap;
 }
 
 .lv-takeaways {

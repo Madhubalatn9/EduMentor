@@ -40,6 +40,11 @@
             <div class="stat-value" id="pg-pass">–</div>
             <div class="stat-label">Problems Passed</div>
         </div>
+        <div class="stat-card card" style="--accent:#06b6d4">
+            <div class="stat-icon">📚</div>
+            <div class="stat-value" id="pg-cr">–</div>
+            <div class="stat-label">Dynamic Courses</div>
+        </div>
     </div>
 
     <!-- Charts -->
@@ -69,6 +74,7 @@
             document.getElementById('pg-iv').textContent = s.interviews;
             document.getElementById('pg-avg').textContent = s.avg_score + '%';
             document.getElementById('pg-pass').textContent = s.coding_passed;
+            document.getElementById('pg-cr').textContent = s.courses;
 
             // Weekly Chart
             const wCtx = document.getElementById('weeklyChart').getContext('2d');

@@ -107,7 +107,7 @@
     function setLoading(on) {
         document.getElementById('rmLoading').classList.toggle('hidden', !on);
         document.getElementById('rmEmpty').classList.toggle('hidden', on);
-        document.getElementById('rmResult').classList.add('hidden');
+        if (on) document.getElementById('rmResult').classList.add('hidden');
         document.getElementById('generateRmBtn').disabled = on;
     }
 

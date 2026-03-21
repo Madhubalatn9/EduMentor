@@ -10,12 +10,23 @@ client = Groq(api_key=Config.GROQ_API_KEY)
 
 
 def _clean_json(content):
+    """Clean AI response to extract valid JSON."""
     content = content.strip()
     if content.startswith('```'):
-        content = content.split('```')[1]
+        parts = content.split('```')
+        if len(parts) >= 3:
+            content = parts[1]
+        else:
+            content = parts[1] if len(parts) > 1 else content
         if content.startswith('json'):
             content = content[4:]
         content = content.strip()
+    
+    first_brace = content.find('[') if content.strip().startswith('[') else content.find('{')
+    last_brace = content.rfind(']') if content.strip().startswith('[') else content.rfind('}')
+    
+    if first_brace != -1 and last_brace != -1:
+        content = content[first_brace:last_brace + 1]
     return content
 
 
@@ -93,6 +104,6 @@ def submit_quiz():
     return jsonify({
         'success': True, 'score': score,
         'total': len(questions),
-        'percentage': round(score / len(questions) * 100, 1),
+        'percentage': round(score / max(len(questions), 1) * 100, 1),
         'results': results
     })

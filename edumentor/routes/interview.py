@@ -10,12 +10,52 @@ client = Groq(api_key=Config.GROQ_API_KEY)
 
 
 def _clean_json(content):
+    """Clean AI response to extract valid JSON."""
     content = content.strip()
+    
+    # Handle markdown code blocks
     if content.startswith('```'):
-        content = content.split('```')[1]
-        if content.startswith('json'):
-            content = content[4:]
-        content = content.strip()
+        # Find the first closing ```
+        first_closing_fence = content.find('```', 3)
+        if first_closing_fence != -1:
+            # Extract content between the first opening and closing fences
+            extracted_content = content[3:first_closing_fence].strip()
+            # If it starts with 'json', remove it
+            if extracted_content.lower().startswith('json'):
+                content = extracted_content[4:].strip()
+            else:
+                content = extracted_content
+        else:
+            # If no closing fence, assume the rest is the content
+            content = content[3:].strip()
+    
+    # Find the first opening brace (either { or [)
+    first_brace_curly = content.find('{')
+    first_brace_square = content.find('[')
+    
+    first_brace = -1
+    if first_brace_curly != -1 and first_brace_square != -1:
+        first_brace = min(first_brace_curly, first_brace_square)
+    elif first_brace_curly != -1:
+        first_brace = first_brace_curly
+    elif first_brace_square != -1:
+        first_brace = first_brace_square
+
+    # Find the last closing brace (either } or ])
+    last_brace_curly = content.rfind('}')
+    last_brace_square = content.rfind(']')
+
+    last_brace = -1
+    if last_brace_curly != -1 and last_brace_square != -1:
+        last_brace = max(last_brace_curly, last_brace_square)
+    elif last_brace_curly != -1:
+        last_brace = last_brace_curly
+    elif last_brace_square != -1:
+        last_brace = last_brace_square
+    
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        content = content[first_brace:last_brace + 1]
+    
     return content
 
 

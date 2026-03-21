@@ -24,7 +24,7 @@ def dashboard():
     recent_quizzes = Quiz.query.filter_by(user_id=current_user.id).order_by(Quiz.created_at.desc()).limit(5).all()
     quizzes_with_score = Quiz.query.filter_by(user_id=current_user.id).filter(Quiz.score.isnot(None)).all()
     avg_score = (
-        sum(q.score / q.total * 100 for q in quizzes_with_score) / len(quizzes_with_score)
+        sum(q.score / max(q.total, 1) * 100 for q in quizzes_with_score) / len(quizzes_with_score)
         if quizzes_with_score else 0
     )
 

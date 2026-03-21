@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required, current_user
-from models import Roadmap, CodingSession, Quiz, InterviewSession
+from models import Roadmap, CodingSession, Quiz, InterviewSession, Course
 from datetime import datetime, timedelta
 import json
 
@@ -22,10 +22,11 @@ def get_stats():
     coding_passed = CodingSession.query.filter_by(user_id=uid, result='passed').count()
     quiz_count = Quiz.query.filter_by(user_id=uid).count()
     interview_count = InterviewSession.query.filter_by(user_id=uid).count()
+    course_count = Course.query.filter_by(user_id=uid).count()
 
     scored_quizzes = Quiz.query.filter_by(user_id=uid).filter(Quiz.score.isnot(None)).all()
     avg_score = (
-        sum(q.score / q.total * 100 for q in scored_quizzes) / len(scored_quizzes)
+        sum(q.score / max(q.total, 1) * 100 for q in scored_quizzes) / len(scored_quizzes)
         if scored_quizzes else 0
     )
 
@@ -36,7 +37,7 @@ def get_stats():
         week_end = datetime.utcnow() - timedelta(weeks=i)
         week_quizzes = [q for q in scored_quizzes if week_start <= q.created_at <= week_end]
         ws = (
-            sum(q.score / q.total * 100 for q in week_quizzes) / len(week_quizzes)
+            sum(q.score / max(q.total, 1) * 100 for q in week_quizzes) / len(week_quizzes)
             if week_quizzes else 0
         )
         label = (datetime.utcnow() - timedelta(weeks=i)).strftime('Week %m/%d')
@@ -48,6 +49,7 @@ def get_stats():
         {'label': 'Coding Sessions', 'value': coding_count, 'color': '#8b5cf6'},
         {'label': 'Quizzes', 'value': quiz_count, 'color': '#0ea5e9'},
         {'label': 'Interviews', 'value': interview_count, 'color': '#10b981'},
+        {'label': 'Courses', 'value': course_count, 'color': '#06b6d4'},
     ]
 
     return jsonify({
@@ -57,6 +59,7 @@ def get_stats():
             'coding_passed': coding_passed,
             'quizzes': quiz_count,
             'interviews': interview_count,
+            'courses': course_count,
             'avg_score': round(avg_score, 1),
         },
         'weekly_scores': weekly_scores,
