@@ -1,0 +1,588 @@
+{% extends 'base.html' %}
+{% block title %}AI Doubt Chatbot{% endblock %}
+{% block page_title %}🤖 AI Doubt Chatbot{% endblock %}
+
+{% block content %}
+<div class="chatbot-container fade-in">
+    <!-- Chat Window -->
+    <div class="chat-window card" id="chatWindow">
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <div class="bot-avatar">🤖</div>
+                <div>
+                    <h3 class="bot-name">EduBot</h3>
+                    <span class="bot-status"><span class="status-dot"></span> Online · Ready to help</span>
+                </div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="clearChat()" id="clearChatBtn">🗑️ Clear</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <!-- Welcome Message -->
+            <div class="message bot-message">
+                <div class="message-avatar">🤖</div>
+                <div class="message-bubble">
+                    <p>Hey <strong>{{ current_user.username }}</strong>! 👋</p>
+                    <p>I'm <strong>EduBot</strong>, your AI learning assistant. Ask me anything about:</p>
+                    <ul>
+                        <li>📘 Programming concepts & syntax</li>
+                        <li>🐛 Debugging help & error fixes</li>
+                        <li>🧠 Data structures & algorithms</li>
+                        <li>💡 Project ideas & best practices</li>
+                        <li>📝 Interview preparation tips</li>
+                    </ul>
+                    <p>Just type your doubt below and I'll explain it! 🚀</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div class="typing-indicator hidden" id="typingIndicator">
+            <div class="message-avatar">🤖</div>
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="chat-input-area">
+            <div class="chat-input-wrapper">
+                <textarea id="chatInput" class="chat-input" placeholder="Ask your doubt here... (Shift+Enter for new line)"
+                    rows="1" maxlength="2000"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    <span class="send-icon">➤</span>
+                </button>
+            </div>
+            <div class="chat-footer-hint">
+                Powered by AI · {{ current_user.skill or 'General' }} · {{ current_user.level or 'Beginner' }} Level
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Questions Sidebar -->
+    <div class="quick-questions card">
+        <h3 class="card-title">⚡ Quick Questions</h3>
+        <div class="quick-list">
+            <button class="quick-btn" onclick="askQuick(this)">What is a variable?</button>
+            <button class="quick-btn" onclick="askQuick(this)">Explain loops with examples</button>
+            <button class="quick-btn" onclick="askQuick(this)">What is OOP?</button>
+            <button class="quick-btn" onclick="askQuick(this)">Difference between list and tuple</button>
+            <button class="quick-btn" onclick="askQuick(this)">How does recursion work?</button>
+            <button class="quick-btn" onclick="askQuick(this)">What is an API?</button>
+            <button class="quick-btn" onclick="askQuick(this)">Explain Big O notation</button>
+            <button class="quick-btn" onclick="askQuick(this)">What is a database index?</button>
+        </div>
+
+        <h3 class="card-title mt-6">💡 Tips</h3>
+        <div class="tips-list">
+            <div class="tip-item">
+                <span class="tip-icon">🎯</span>
+                <span>Be specific with your questions for better answers</span>
+            </div>
+            <div class="tip-item">
+                <span class="tip-icon">📎</span>
+                <span>Paste code snippets to get debugging help</span>
+            </div>
+            <div class="tip-item">
+                <span class="tip-icon">🔄</span>
+                <span>Follow up if you want deeper explanation</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ─── CHATBOT LAYOUT ─── */
+.chatbot-container {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.5rem;
+    height: calc(100vh - var(--topbar-h) - 4rem);
+    max-height: 800px;
+}
+
+/* ─── CHAT WINDOW ─── */
+.chat-window {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+.chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(245, 158, 11, 0.04);
+}
+
+.chat-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.bot-avatar {
+    font-size: 2rem;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+}
+
+.bot-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.bot-status {
+    font-size: 0.75rem;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    background: #10b981;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ─── MESSAGES ─── */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    scroll-behavior: smooth;
+}
+
+.message {
+    display: flex;
+    gap: 0.75rem;
+    max-width: 85%;
+    animation: msgIn 0.3s ease;
+}
+
+@keyframes msgIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.bot-message {
+    align-self: flex-start;
+}
+
+.user-message {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message-avatar {
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.bot-message .message-avatar {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15));
+}
+
+.user-message .message-avatar {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+}
+
+.message-bubble {
+    padding: 0.9rem 1.2rem;
+    border-radius: 16px;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.bot-message .message-bubble {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.user-message .message-bubble {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    border-top-right-radius: 4px;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+}
+
+.message-bubble p { margin-bottom: 0.6rem; }
+.message-bubble p:last-child { margin-bottom: 0; }
+.message-bubble ul, .message-bubble ol { margin: 0.5rem 0 0.5rem 1.25rem; }
+.message-bubble li { margin-bottom: 0.3rem; }
+.message-bubble code {
+    background: var(--surface);
+    color: var(--cyan);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+}
+.user-message .message-bubble code {
+    background: rgba(255,255,255,0.2);
+}
+.message-bubble pre {
+    background: #0B0E14;
+    color: #cdd6f4;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.83rem;
+    line-height: 1.5;
+}
+.message-bubble pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+.message-bubble strong { font-weight: 700; }
+
+/* ─── TYPING INDICATOR ─── */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1.5rem 0.75rem;
+}
+
+.typing-indicator.hidden { display: none; }
+
+.typing-dots {
+    display: flex;
+    gap: 4px;
+    padding: 0.7rem 1rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+}
+
+.typing-dots span {
+    width: 7px;
+    height: 7px;
+    background: var(--text3);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* ─── INPUT AREA ─── */
+.chat-input-area {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.chat-input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.chat-input-wrapper:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+}
+
+.chat-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.5;
+    background: transparent;
+    color: var(--text);
+}
+
+.chat-input::placeholder { color: var(--text3); }
+
+.send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 12px rgba(217, 119, 6, 0.3);
+}
+
+.send-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.send-icon { display: inline-block; transform: rotate(-0deg); }
+
+.chat-footer-hint {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text3);
+    margin-top: 0.5rem;
+}
+
+/* ─── QUICK QUESTIONS SIDEBAR ─── */
+.quick-questions {
+    height: fit-content;
+    position: sticky;
+    top: calc(var(--topbar-h) + 2rem);
+}
+
+.quick-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.quick-btn {
+    text-align: left;
+    padding: 0.6rem 0.9rem;
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.12);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-btn:hover {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.3);
+    transform: translateX(3px);
+}
+
+.mt-6 { margin-top: 1.5rem; }
+
+.tips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text2);
+    line-height: 1.4;
+}
+
+.tip-icon { flex-shrink: 0; }
+
+/* ─── ERROR BUBBLE ─── */
+.error-bubble {
+    background: rgba(220, 38, 38, 0.08) !important;
+    border-color: rgba(220, 38, 38, 0.2) !important;
+    color: var(--red) !important;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+    .chatbot-container {
+        grid-template-columns: 1fr;
+        height: calc(100vh - var(--topbar-h) - 3rem);
+    }
+    .quick-questions { display: none; }
+}
+</style>
+
+<script>
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingIndicator = document.getElementById('typingIndicator');
+
+let chatHistory = [];
+let isWaiting = false;
+
+// Auto-resize textarea
+chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// Enter to send, Shift+Enter for new line
+chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+function askQuick(btn) {
+    chatInput.value = btn.textContent;
+    sendMessage();
+}
+
+function clearChat() {
+    chatHistory = [];
+    chatMessages.innerHTML = `
+        <div class="message bot-message">
+            <div class="message-avatar">🤖</div>
+            <div class="message-bubble">
+                <p>Chat cleared! Ask me a new question 🚀</p>
+            </div>
+        </div>`;
+}
+
+function addMessage(content, role) {
+    const div = document.createElement('div');
+    div.className = `message ${role === 'user' ? 'user-message' : 'bot-message'}`;
+
+    const avatar = role === 'user' ? '👤' : '🤖';
+    const bubbleContent = role === 'user' ? escapeHtml(content) : formatMarkdown(content);
+
+    div.innerHTML = `
+        <div class="message-avatar">${avatar}</div>
+        <div class="message-bubble">${bubbleContent}</div>`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addErrorMessage(content) {
+    const div = document.createElement('div');
+    div.className = 'message bot-message';
+    div.innerHTML = `
+        <div class="message-avatar">⚠️</div>
+        <div class="message-bubble error-bubble">${escapeHtml(content)}</div>`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendMessage() {
+    const msg = chatInput.value.trim();
+    if (!msg || isWaiting) return;
+
+    isWaiting = true;
+    sendBtn.disabled = true;
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
+    addMessage(msg, 'user');
+
+    typingIndicator.classList.remove('hidden');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        const res = await fetch('/chatbot/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg, history: chatHistory })
+        });
+
+        const data = await res.json();
+        typingIndicator.classList.add('hidden');
+
+        if (data.error) {
+            addErrorMessage(data.error);
+        } else {
+            chatHistory.push({ role: 'user', content: msg });
+            chatHistory.push({ role: 'assistant', content: data.reply });
+            addMessage(data.reply, 'assistant');
+        }
+    } catch (err) {
+        typingIndicator.classList.add('hidden');
+        addErrorMessage('Network error. Please check your connection.');
+    }
+
+    isWaiting = false;
+    sendBtn.disabled = false;
+    chatInput.focus();
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+function formatMarkdown(text) {
+    // Code blocks
+    text = text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    // Inline code
+    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Headings
+    text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+    text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+    // Unordered lists
+    text = text.replace(/^\s*[-*] (.+)$/gm, '<li>$1</li>');
+    text = text.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+    // Ordered lists
+    text = text.replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>');
+    // Line breaks between paragraphs
+    text = text.replace(/\n{2,}/g, '</p><p>');
+    text = text.replace(/\n/g, '<br>');
+    // Wrap in paragraph
+    if (!text.startsWith('<')) text = '<p>' + text + '</p>';
+    return text;
+}
+</script>
+{% endblock %}

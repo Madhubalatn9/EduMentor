@@ -3,6 +3,28 @@
 {% block page_title %}🎯 Interview Prep{% endblock %}
 
 {% block content %}
+<style>
+    .recording {
+        background-color: rgba(239, 68, 68, 0.2) !important;
+        border-color: var(--error) !important;
+        color: var(--error) !important;
+        animation: pulse-mic 1.5s infinite;
+    }
+
+    @keyframes pulse-mic {
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+</style>
 <div class="module-layout">
     <!-- Settings Panel -->
     <div class="panel card">
@@ -86,9 +108,16 @@
                 <p id="ivFollowUp" class="iv-followup hidden"></p>
 
                 <div class="iv-answer-section">
-                    <label class="form-label">Your Answer</label>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label class="form-label" style="margin: 0;">Your Answer</label>
+                        <button id="micBtn" class="btn btn-outline btn-sm" onclick="toggleMic()"
+                            title="Dictate your answer via Microphone">
+                            🎤 Start Speaking
+                        </button>
+                    </div>
                     <textarea id="ivUserAnswer" class="form-input iv-textarea"
-                        placeholder="Type your answer here to get AI feedback…" rows="5"></textarea>
+                        placeholder="Type your answer here or click 'Start Speaking' to dictate..." rows="5"></textarea>
                     <button class="btn btn-secondary" onclick="evaluateAnswer()">🤖 Evaluate My Answer</button>
                 </div>
 
@@ -213,6 +242,80 @@
         strengths.innerHTML = ev.strengths ? '<h5>✅ Strengths</h5><ul>' + ev.strengths.map(s => `<li>${s}</li>`).join('') + '</ul>' : '';
         const improvements = document.getElementById('ivImprovements');
         improvements.innerHTML = ev.improvements ? '<h5>💡 Improvements</h5><ul>' + ev.improvements.map(i => `<li>${i}</li>`).join('') + '</ul>' : '';
+    }
+
+    // --- MICROPHONE / SPEECH RECOGNITION ---
+    let recognition = null;
+    let isRecording = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        recognition.onstart = function () {
+            isRecording = true;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) {
+                micBtn.classList.add('recording');
+                micBtn.innerHTML = '🛑 Stop Speaking...';
+            }
+            showToast('Microphone active. Start speaking!', 'info');
+        };
+
+        recognition.onresult = function (event) {
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+            if (finalTranscript) {
+                const answerArea = document.getElementById('ivUserAnswer');
+                const currentVal = answerArea.value.trim();
+                answerArea.value = currentVal ? currentVal + ' ' + finalTranscript.trim() : finalTranscript.trim();
+            }
+        };
+
+        recognition.onerror = function (event) {
+            console.error('Speech recognition error', event.error);
+            showToast('Microphone error: ' + event.error, 'error');
+            stopMic();
+        };
+
+        recognition.onend = function () {
+            if (isRecording) {
+                stopMic();
+            }
+        };
+    }
+
+    function toggleMic() {
+        if (!recognition) {
+            showToast('Speech recognition is not supported in your browser (try Chrome/Edge).', 'error');
+            return;
+        }
+        if (isRecording) {
+            stopMic();
+        } else {
+            // Give textarea focus when recording starts
+            document.getElementById('ivUserAnswer').focus();
+            try { recognition.start(); } catch (e) { console.error(e); }
+        }
+    }
+
+    function stopMic() {
+        if (recognition && isRecording) {
+            recognition.stop();
+            isRecording = false;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) {
+                micBtn.classList.remove('recording');
+                micBtn.innerHTML = '🎤 Start Speaking';
+            }
+            showToast('Microphone stopped.', 'info');
+        }
     }
 </script>
 {% endblock %}

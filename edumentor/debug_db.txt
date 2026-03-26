@@ -1,0 +1,2 @@
+(1, 'Introduction to Python Programming', 18, '[]')
+(2, '🐍 Python Programming for Beginners 🚀', 18, '["5-4", "1-1"]')

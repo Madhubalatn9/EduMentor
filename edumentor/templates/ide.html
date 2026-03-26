@@ -2,6 +2,30 @@
 {% block title %}Coding IDE{% endblock %}
 {% block page_title %}💻 Coding IDE{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
+<style>
+    .CodeMirror {
+        height: 100%;
+        width: 100%;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        border-radius: var(--radius);
+        background: #272822; /* Monokai background */
+    }
+    .code-editor-wrap {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+        border-radius: var(--radius);
+        background: #272822;
+        padding: 0; /* Remove left padding previously used for line numbers */
+    }
+    #lineNumbers { display: none; } /* Hide old custom line numbers */
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="ide-layout">
     <!-- Left: Problem Panel -->
@@ -81,6 +105,8 @@
             <div class="editor-actions">
                 <button class="btn btn-outline" onclick="clearCode()">🗑️ Clear</button>
                 <button class="btn btn-secondary" onclick="runCode()">▶ Run</button>
+                <button class="btn btn-outline" style="border-color: var(--primary); color: var(--primary);" onclick="runTests()">🧪 Test</button>
+                <button class="btn btn-hint" id="hintBtn" onclick="getHint()" title="Get a progressive hint">💡 Hint</button>
                 <button class="btn btn-primary" onclick="evaluateSolution()">🤖 AI Evaluate</button>
             </div>
         </div>
@@ -101,6 +127,43 @@
                 <div class="loader"></div>
             </div>
             <pre id="codeOutput" class="code-output">Press "Run" to execute your code.</pre>
+            
+            <div id="testResults" class="hidden" style="margin-top: 1rem; background: var(--surface); padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 0.5rem 0; color: var(--text);">🧪 Test Results</h4>
+                <div id="testSummary" style="font-weight: bold; margin-bottom: 0.5rem;"></div>
+                <div id="testCasesList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+            </div>
+        </div>
+
+        <!-- Hint Panel -->
+        <div id="hintPanel" class="hint-panel card hidden">
+            <div class="hint-header">
+                <h4 class="card-title">💡 Progressive Hints</h4>
+                <div class="hint-level-tracker">
+                    <span class="hint-level-dot" data-level="1" title="Approach"></span>
+                    <span class="hint-level-dot" data-level="2" title="Steps"></span>
+                    <span class="hint-level-dot" data-level="3" title="Pseudocode"></span>
+                    <span class="hint-level-dot" data-level="4" title="Skeleton"></span>
+                    <span class="hint-level-dot" data-level="5" title="Nudge"></span>
+                </div>
+            </div>
+            <div class="hint-level-labels">
+                <span>🔍 Approach</span>
+                <span>📋 Steps</span>
+                <span>📝 Pseudo</span>
+                <span>🧩 Skeleton</span>
+                <span>🎯 Nudge</span>
+            </div>
+            <div id="hintLoading" class="loader-container hidden">
+                <div class="loader"></div>
+                <p>Thinking of a hint…</p>
+            </div>
+            <div id="hintContent"></div>
+            <div id="hintEncouragement" class="hint-encouragement hidden"></div>
+            <div class="hint-actions">
+                <button class="btn btn-outline btn-sm" id="nextHintBtn" onclick="getHint()" style="display:none;">💡 Need more help</button>
+                <button class="btn btn-outline btn-sm" onclick="resetHints()">🔄 Reset Hints</button>
+            </div>
         </div>
 
         <!-- AI Evaluation -->
@@ -122,6 +185,10 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
 <script>
     let currentProblem = null;
     const starterCode = {
@@ -131,32 +198,34 @@
         cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n'
     };
 
-    const editor = document.getElementById('codeEditor');
-    const lineNumbers = document.getElementById('lineNumbers');
-
-    editor.value = starterCode.python;
-    updateLineNumbers();
-
-    editor.addEventListener('input', updateLineNumbers);
-    editor.addEventListener('scroll', () => {
-        lineNumbers.scrollTop = editor.scrollTop;
+    const textArea = document.getElementById('codeEditor');
+    const cmEditor = CodeMirror.fromTextArea(textArea, {
+        mode: 'python',
+        theme: 'monokai',
+        lineNumbers: true,
+        indentUnit: 4,
+        matchBrackets: true
     });
 
-    function updateLineNumbers() {
-        const lines = editor.value.split('\n').length;
-        lineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
-    }
+    cmEditor.setValue(starterCode.python);
 
     function changeLang() {
         const lang = document.getElementById('edLang').value;
+        // Map abstract language names to CodeMirror modes
+        const modeMap = {
+            'python': 'python',
+            'javascript': 'javascript',
+            'java': 'text/x-java',
+            'cpp': 'text/x-c++src'
+        };
+        cmEditor.setOption('mode', modeMap[lang] || 'python');
+
         if (!currentProblem) {
-            editor.value = starterCode[lang] || '';
-            updateLineNumbers();
+            cmEditor.setValue(starterCode[lang] || '');
             return;
         }
         const starter = (currentProblem.starter_code || {})[lang];
-        editor.value = starter || starterCode[lang] || '';
-        updateLineNumbers();
+        cmEditor.setValue(starter || starterCode[lang] || '');
     }
 
     async function generateProblem() {
@@ -178,8 +247,7 @@
                 renderProblem(data.problem);
                 const lang = document.getElementById('edLang').value;
                 const starter = (data.problem.starter_code || {})[lang];
-                editor.value = starter || starterCode[lang] || '';
-                updateLineNumbers();
+                cmEditor.setValue(starter || starterCode[lang] || '');
                 document.getElementById('evalPanel').classList.add('hidden');
             } else showToast(data.error || 'Failed', 'error');
         } catch (e) { showToast('Network error', 'error'); }
@@ -208,27 +276,103 @@
     }
 
     async function runCode() {
-        const code = document.getElementById('codeEditor').value;
+        const code = cmEditor.getValue();
         const language = document.getElementById('edLang').value;
         if (!code.trim()) { showToast('Write some code first!', 'error'); return; }
+        
+        let codeToRun = code;
+        
+        // Auto-inject a print statement if no print is found, so the user sees their program output!
+        if (currentProblem && currentProblem.examples && currentProblem.examples.length > 0) {
+            const sampleInput = currentProblem.examples[0].input.replace(/^[a-zA-Z0-9_]+\s*=\s*/, ''); // strip leading 'varname =' 
+            
+            if (language === 'python' && !code.includes('print')) {
+                const defMatch = code.match(/def\s+([a-zA-Z0-9_]+)\s*\(/);
+                if (defMatch) {
+                    codeToRun += `\n\nprint("--- Auto-Run Output (Example 1) ---")\nprint(${defMatch[1]}(${sampleInput}))`;
+                }
+            } else if ((language === 'javascript' || language === 'js') && !code.includes('console.log')) {
+                const defMatch = code.match(/function\s+([a-zA-Z0-9_]+)\s*\(/) || code.match(/(?:const|let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(?:function|\()/);
+                if (defMatch) {
+                    codeToRun += `\n\nconsole.log("--- Auto-Run Output (Example 1) ---");\nconsole.log(${defMatch[1]}(${sampleInput}));`;
+                }
+            }
+        }
+        
         document.getElementById('runLoading').classList.remove('hidden');
         document.getElementById('codeOutput').textContent = '';
+        document.getElementById('testResults').classList.add('hidden');
         try {
             const res = await fetch('/api/ide/execute', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code, language })
+                body: JSON.stringify({ code: codeToRun, language })
             });
             const data = await res.json();
             const status = document.getElementById('runStatus');
             status.classList.remove('hidden');
             status.textContent = data.status || 'Done';
-            document.getElementById('codeOutput').textContent = data.output || data.error || 'No output';
+            status.className = `badge badge-${data.status === 'Accepted' ? 'success' : 'warning'}`;
+            let finalOut = data.output || data.error || '';
+            if (!finalOut.trim()) {
+                finalOut = 'No output\n\n(Did you forget to add a print() statement?)';
+            }
+            document.getElementById('codeOutput').textContent = finalOut;
         } catch (e) { document.getElementById('codeOutput').textContent = 'Error: ' + e.message; }
         document.getElementById('runLoading').classList.add('hidden');
     }
 
+    async function runTests() {
+        const code = cmEditor.getValue();
+        const language = document.getElementById('edLang').value;
+        if (!code.trim()) { showToast('Write your solution first!', 'error'); return; }
+        if (!currentProblem || !currentProblem.examples) { showToast('Generate a problem first!', 'error'); return; }
+        
+        document.getElementById('runLoading').classList.remove('hidden');
+        document.getElementById('codeOutput').textContent = 'Running test cases...';
+        document.getElementById('testResults').classList.add('hidden');
+        
+        try {
+            const res = await fetch('/api/ide/run-tests', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    code, language, 
+                    problem_title: currentProblem.title,
+                    problem_desc: currentProblem.description,
+                    examples: currentProblem.examples 
+                })
+            });
+            const data = await res.json();
+            document.getElementById('codeOutput').textContent = 'Test execution finished. See results below.';
+            
+            const tr = document.getElementById('testResults');
+            tr.classList.remove('hidden');
+            
+            if (data.success && data.summary) {
+                const s = data.summary;
+                const sumEl = document.getElementById('testSummary');
+                sumEl.textContent = `${s.passed} / ${s.total} Tests Passed`;
+                sumEl.style.color = s.all_passed ? 'var(--success)' : (s.passed > 0 ? 'var(--warning)' : 'var(--error)');
+                
+                const listEl = document.getElementById('testCasesList');
+                listEl.innerHTML = data.results.map(r => `
+                    <div style="padding: 0.5rem; border-radius: 4px; border-left: 4px solid ${r.status === 'PASS' ? 'var(--success)' : 'var(--error)'}; background: rgba(0,0,0,0.05);">
+                        <div style="font-weight:bold;">Test ${r.test}: <span style="color: ${r.status === 'PASS' ? 'var(--success)' : 'var(--error)'}">${r.status}</span></div>
+                        <div style="font-size: 0.9em; margin-top: 4px;">Expected: <code>${r.expected}</code></div>
+                        <div style="font-size: 0.9em;">Actual: <code>${r.actual}</code></div>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('testSummary').textContent = data.error || 'Test execution failed.';
+                document.getElementById('testCasesList').innerHTML = '';
+            }
+        } catch (e) { 
+            document.getElementById('codeOutput').textContent = 'Network error while running tests.'; 
+        }
+        document.getElementById('runLoading').classList.add('hidden');
+    }
+
     async function evaluateSolution() {
-        const code = document.getElementById('codeEditor').value;
+        const code = cmEditor.getValue();
         const language = document.getElementById('edLang').value;
         if (!code.trim()) { showToast('Write your solution first!', 'error'); return; }
         if (!currentProblem) { showToast('Generate a problem first!', 'error'); return; }
@@ -264,8 +408,119 @@
 
     function clearCode() {
         const lang = document.getElementById('edLang').value;
-        editor.value = starterCode[lang] || '';
-        updateLineNumbers();
+        cmEditor.setValue(starterCode[lang] || '');
+    }
+
+    /* ─── Progressive Hint System ─── */
+    let currentHintLevel = 0;
+    const maxHintLevel = 5;
+    const hintLabels = ['', 'Approach', 'Steps', 'Pseudocode', 'Skeleton', 'Nudge'];
+
+    async function getHint() {
+        if (!currentProblem) {
+            showToast('Generate a problem first!', 'error');
+            return;
+        }
+        if (currentHintLevel >= maxHintLevel) {
+            showToast('All hints revealed! Try solving it or reset hints.', 'info');
+            return;
+        }
+
+        currentHintLevel++;
+        const panel = document.getElementById('hintPanel');
+        panel.classList.remove('hidden');
+        document.getElementById('hintLoading').classList.remove('hidden');
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('hintBtn').textContent = '⏳ Thinking…';
+
+        const problemText = `${currentProblem.title}\n${currentProblem.description}`;
+        const code = cmEditor.getValue();
+        const language = document.getElementById('edLang').value;
+
+        try {
+            const res = await fetch('/api/ide/get-hint', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    problem: problemText,
+                    code: code,
+                    language: language,
+                    hint_level: currentHintLevel
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                renderHint(data.hint, currentHintLevel);
+            } else {
+                showToast(data.error || 'Failed to get hint', 'error');
+                currentHintLevel--;
+            }
+        } catch (e) {
+            showToast('Network error', 'error');
+            currentHintLevel--;
+        }
+
+        document.getElementById('hintLoading').classList.add('hidden');
+        document.getElementById('hintBtn').disabled = false;
+        document.getElementById('hintBtn').textContent = currentHintLevel >= maxHintLevel ? '💡 All Hints Used' : '💡 Hint';
+    }
+
+    function renderHint(hintData, level) {
+        // Update level dots
+        document.querySelectorAll('.hint-level-dot').forEach(dot => {
+            const dotLevel = parseInt(dot.dataset.level);
+            if (dotLevel <= level) dot.classList.add('active');
+        });
+
+        // Add hint content
+        const hintContent = document.getElementById('hintContent');
+        const hintDiv = document.createElement('div');
+        hintDiv.className = 'hint-item hint-item-new';
+        hintDiv.innerHTML = `
+            <div class="hint-item-header">
+                <span class="hint-badge">Level ${level} — ${hintLabels[level]}</span>
+            </div>
+            <div class="hint-text">${formatHintText(hintData.hint || '')}</div>
+        `;
+        hintContent.appendChild(hintDiv);
+
+        // Show encouragement
+        if (hintData.encouragement) {
+            const enc = document.getElementById('hintEncouragement');
+            enc.textContent = hintData.encouragement;
+            enc.classList.remove('hidden');
+        }
+
+        // Show/hide "Need more help" button
+        const nextBtn = document.getElementById('nextHintBtn');
+        if (level < maxHintLevel) {
+            nextBtn.style.display = 'inline-flex';
+            nextBtn.textContent = `💡 Need more help (Level ${level + 1}/${maxHintLevel})`;
+        } else {
+            nextBtn.style.display = 'none';
+        }
+
+        // Smooth scroll to hint
+        hintDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function formatHintText(text) {
+        // Convert bullet points and newlines to HTML
+        return text
+            .replace(/\n/g, '<br>')
+            .replace(/•/g, '&bull;')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function resetHints() {
+        currentHintLevel = 0;
+        document.getElementById('hintContent').innerHTML = '';
+        document.getElementById('hintEncouragement').classList.add('hidden');
+        document.getElementById('nextHintBtn').style.display = 'none';
+        document.getElementById('hintPanel').classList.add('hidden');
+        document.getElementById('hintBtn').textContent = '💡 Hint';
+        document.querySelectorAll('.hint-level-dot').forEach(dot => dot.classList.remove('active'));
     }
 </script>
 {% endblock %}

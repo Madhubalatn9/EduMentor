@@ -35,6 +35,9 @@
       <a href="{{ url_for('course.course') }}"
         class="nav-link {% if request.endpoint=='course.course' %}active{% endif %}">
         <span class="nav-icon">📚</span><span>Dynamic Course</span></a>
+      <a href="{{ url_for('chatbot.chatbot') }}"
+        class="nav-link {% if request.endpoint=='chatbot.chatbot' %}active{% endif %}">
+        <span class="nav-icon">🤖</span><span>AI Chatbot</span></a>
       <a href="{{ url_for('ide.ide') }}" class="nav-link {% if request.endpoint=='ide.ide' %}active{% endif %}">
         <span class="nav-icon">💻</span><span>Coding IDE</span></a>
       <a href="{{ url_for('quiz.quiz') }}" class="nav-link {% if request.endpoint=='quiz.quiz' %}active{% endif %}">

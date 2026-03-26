@@ -449,6 +449,31 @@
         document.getElementById('progressPct').textContent = pct + '%';
         document.getElementById('progressCount').textContent = `${done}/${total} lessons`;
         document.getElementById('progressFill').style.width = pct + '%';
+        
+        let badgeEl = document.getElementById('courseBadge');
+        if (pct === 100 && total > 0) {
+            if (!badgeEl) {
+                badgeEl = document.createElement('div');
+                badgeEl.id = 'courseBadge';
+                badgeEl.innerHTML = '🏆 <strong>Course Champion</strong> Badge Unlocked!';
+                badgeEl.style = "margin-top: 1.5rem; padding: 1rem; background: rgba(245, 158, 11, 0.15); border: 2px solid var(--primary); border-radius: 12px; color: var(--primary); text-align: center; font-size: 1.1rem; animation: fadeInUp 0.5s ease;";
+                document.getElementById('courseCurriculum').appendChild(badgeEl);
+                if (!window.confettiFired) {
+                   const script = document.createElement('script');
+                   script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+                   script.onload = () => { confetti({particleCount: 150, spread: 70, origin: {y: 0.6}}); };
+                   document.head.appendChild(script);
+                   window.confettiFired = true;
+                   showToast('Congratulations! You earned the Course Champion badge! 🏆', 'success');
+                   if (!currentCourseId) {
+                       saveCourse();
+                   }
+                }
+            }
+        } else {
+            if (badgeEl) badgeEl.remove();
+            window.confettiFired = false;
+        }
     }
 
     function highlightActiveLesson() {
@@ -466,7 +491,7 @@
         try {
             const res = await fetch('/api/course/save', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ course: currentCourse })
+                body: JSON.stringify({ course: currentCourse, completed_lessons: completedLessons })
             });
             const data = await res.json();
             if (data.success) {

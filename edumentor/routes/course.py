@@ -2,80 +2,10 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from models import db, Course, LessonContent
 from config import Config
-from groq import Groq
+from utils import get_groq_client, safe_json_loads, sanitize_input
 import json
-import re
 
 course_bp = Blueprint('course', __name__)
-client = Groq(api_key=Config.GROQ_API_KEY)
-
-
-def _clean_json(content):
-    """Clean AI response to extract valid JSON."""
-    content = content.strip()
-    
-    # Handle markdown code blocks
-    if content.startswith('```'):
-        # Find the first closing ```
-        first_closing_fence = content.find('```', 3)
-        if first_closing_fence != -1:
-            # Extract content between the first opening and closing fences
-            extracted_content = content[3:first_closing_fence].strip()
-            # If it starts with 'json', remove it
-            if extracted_content.lower().startswith('json'):
-                content = extracted_content[4:].strip()
-            else:
-                content = extracted_content
-        else:
-            # If no closing fence, assume the rest is the content
-            content = content[3:].strip()
-    
-    # Find the first opening brace (either { or [)
-    first_brace_curly = content.find('{')
-    first_brace_square = content.find('[')
-    
-    first_brace = -1
-    if first_brace_curly != -1 and first_brace_square != -1:
-        first_brace = min(first_brace_curly, first_brace_square)
-    elif first_brace_curly != -1:
-        first_brace = first_brace_curly
-    elif first_brace_square != -1:
-        first_brace = first_brace_square
-
-    # Find the last closing brace (either } or ])
-    last_brace_curly = content.rfind('}')
-    last_brace_square = content.rfind(']')
-
-    last_brace = -1
-    if last_brace_curly != -1 and last_brace_square != -1:
-        last_brace = max(last_brace_curly, last_brace_square)
-    elif last_brace_curly != -1:
-        last_brace = last_brace_curly
-    elif last_brace_square != -1:
-        last_brace = last_brace_square
-    
-    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        content = content[first_brace:last_brace + 1]
-    
-    return content
-
-
-def _safe_json_loads(content):
-    """Parse JSON with fallback for control characters."""
-    content = _clean_json(content)
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        # Try with strict=False to allow control characters in strings
-        try:
-            return json.loads(content, strict=False)
-        except json.JSONDecodeError:
-            # Last resort: escape problematic control characters inside string values
-            # Replace unescaped control chars (except already escaped ones)
-            cleaned = re.sub(r'[\x00-\x1f]', lambda m: {
-                '\n': '\\n', '\t': '\\t', '\r': '\\r'
-            }.get(m.group(), ''), content)
-            return json.loads(cleaned, strict=False)
 
 
 @course_bp.route('/course')
@@ -89,8 +19,8 @@ def course():
 @login_required
 def generate_course():
     data = request.json
-    skill = data.get('skill', '').strip()
-    level = data.get('level', 'Beginner')
+    skill = sanitize_input(data.get('skill', ''), max_length=100)
+    level = sanitize_input(data.get('level', 'Beginner'), max_length=50)
     modules_count = min(int(data.get('modules', 5)), 10)
 
     if not skill:
@@ -113,6 +43,7 @@ def generate_course():
         f'Make each module progressively more advanced. Use realistic durations.'
     )
     try:
+        client = get_groq_client()
         resp = client.chat.completions.create(
             model=Config.GROQ_MODEL,
             messages=[
@@ -121,7 +52,7 @@ def generate_course():
             ],
             temperature=0.7, max_tokens=3000
         )
-        course_data = _safe_json_loads(resp.choices[0].message.content)
+        course_data = safe_json_loads(resp.choices[0].message.content)
 
         total = sum(len(m.get('lessons', [])) for m in course_data.get('modules', []))
         course_data['total_lessons'] = total
@@ -138,12 +69,12 @@ def generate_course():
 def generate_lesson():
     """Generate lesson content dynamically when a user clicks on a lesson."""
     data = request.json
-    course_title = data.get('course_title', '')
-    skill = data.get('skill', '')
-    level = data.get('level', 'Beginner')
-    module_title = data.get('module_title', '')
-    lesson_title = data.get('lesson_title', '')
-    lesson_type = data.get('lesson_type', 'theory')
+    course_title = sanitize_input(data.get('course_title', ''), max_length=200)
+    skill = sanitize_input(data.get('skill', ''), max_length=100)
+    level = sanitize_input(data.get('level', 'Beginner'), max_length=50)
+    module_title = sanitize_input(data.get('module_title', ''), max_length=200)
+    lesson_title = sanitize_input(data.get('lesson_title', ''), max_length=200)
+    lesson_type = sanitize_input(data.get('lesson_type', 'theory'), max_length=20)
     course_id = data.get('course_id')
     module_id = data.get('module_id')
     lesson_id = data.get('lesson_id')
@@ -179,6 +110,7 @@ def generate_lesson():
         f'}}'
     )
     try:
+        client = get_groq_client()
         resp = client.chat.completions.create(
             model=Config.GROQ_MODEL,
             messages=[
@@ -187,7 +119,7 @@ def generate_lesson():
             ],
             temperature=0.7, max_tokens=4000
         )
-        lesson_data = _safe_json_loads(resp.choices[0].message.content)
+        lesson_data = safe_json_loads(resp.choices[0].message.content)
 
         # Cache the content if course is saved
         if course_id:
@@ -210,12 +142,14 @@ def generate_lesson():
 def save_course():
     data = request.json
     course_data = data.get('course', {})
+    comp = data.get('completed_lessons', [])
     c = Course(
         user_id=current_user.id,
         title=course_data.get('title', 'Untitled Course'),
         skill=course_data.get('skill', ''),
         level=course_data.get('level', ''),
         structure=json.dumps(course_data),
+        completed_lessons=json.dumps(comp),
         total_lessons=course_data.get('total_lessons', 0)
     )
     db.session.add(c)

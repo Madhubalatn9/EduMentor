@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from flask_bcrypt import Bcrypt
@@ -15,7 +15,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     skill = db.Column(db.String(100), nullable=True)
     level = db.Column(db.String(50), nullable=True, default='Beginner')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     roadmaps = db.relationship('Roadmap', backref='user', lazy=True, cascade='all, delete-orphan')
     coding_sessions = db.relationship('CodingSession', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -40,7 +40,7 @@ class Roadmap(db.Model):
     skill = db.Column(db.String(100), nullable=False)
     level = db.Column(db.String(50), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class CodingSession(db.Model):
@@ -53,7 +53,7 @@ class CodingSession(db.Model):
     language = db.Column(db.String(50), nullable=True)
     result = db.Column(db.String(50), nullable=True)
     ai_feedback = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Quiz(db.Model):
@@ -66,7 +66,7 @@ class Quiz(db.Model):
     user_answers = db.Column(db.Text, nullable=True)
     score = db.Column(db.Integer, nullable=True)
     total = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class InterviewSession(db.Model):
@@ -76,7 +76,7 @@ class InterviewSession(db.Model):
     skill = db.Column(db.String(100), nullable=False)
     level = db.Column(db.String(50), nullable=False)
     questions = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Course(db.Model):
@@ -89,7 +89,7 @@ class Course(db.Model):
     structure = db.Column(db.Text, nullable=False)
     completed_lessons = db.Column(db.Text, default='[]')
     total_lessons = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     lesson_contents = db.relationship('LessonContent', backref='course', lazy=True, cascade='all, delete-orphan')
 
@@ -101,4 +101,4 @@ class LessonContent(db.Model):
     module_id = db.Column(db.Integer, nullable=False)
     lesson_id = db.Column(db.Integer, nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

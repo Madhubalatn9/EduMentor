@@ -2,32 +2,10 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from models import db, Quiz
 from config import Config
-from groq import Groq
+from utils import get_groq_client, clean_json, sanitize_input
 import json
 
 quiz_bp = Blueprint('quiz', __name__)
-client = Groq(api_key=Config.GROQ_API_KEY)
-
-
-def _clean_json(content):
-    """Clean AI response to extract valid JSON."""
-    content = content.strip()
-    if content.startswith('```'):
-        parts = content.split('```')
-        if len(parts) >= 3:
-            content = parts[1]
-        else:
-            content = parts[1] if len(parts) > 1 else content
-        if content.startswith('json'):
-            content = content[4:]
-        content = content.strip()
-    
-    first_brace = content.find('[') if content.strip().startswith('[') else content.find('{')
-    last_brace = content.rfind(']') if content.strip().startswith('[') else content.rfind('}')
-    
-    if first_brace != -1 and last_brace != -1:
-        content = content[first_brace:last_brace + 1]
-    return content
 
 
 @quiz_bp.route('/quiz')
@@ -41,9 +19,9 @@ def quiz():
 @login_required
 def generate_quiz():
     data = request.json
-    skill = data.get('skill', current_user.skill or 'Python')
-    level = data.get('level', current_user.level or 'Beginner')
-    topic = data.get('topic', '')
+    skill = sanitize_input(data.get('skill', current_user.skill or 'Python'), max_length=100)
+    level = sanitize_input(data.get('level', current_user.level or 'Beginner'), max_length=50)
+    topic = sanitize_input(data.get('topic', ''), max_length=200)
     count = min(int(data.get('count', 10)), 20)
     topic_str = f" focused on {topic}" if topic else ""
     prompt = (
@@ -53,6 +31,7 @@ def generate_quiz():
         '"correct_answer":"A","explanation":"..."}]'
     )
     try:
+        client = get_groq_client()
         resp = client.chat.completions.create(
             model=Config.GROQ_MODEL,
             messages=[
@@ -61,7 +40,7 @@ def generate_quiz():
             ],
             temperature=0.7, max_tokens=2500
         )
-        content = _clean_json(resp.choices[0].message.content)
+        content = clean_json(resp.choices[0].message.content)
         questions = json.loads(content)
         quiz_obj = Quiz(
             user_id=current_user.id, skill=skill, level=level,
@@ -107,3 +86,4 @@ def submit_quiz():
         'percentage': round(score / max(len(questions), 1) * 100, 1),
         'results': results
     })
+
